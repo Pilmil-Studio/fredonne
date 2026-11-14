@@ -13,8 +13,8 @@ android {
         applicationId = "fr.fredonne.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = System.getenv("FREDONNE_VERSION_CODE")?.toIntOrNull() ?: 1
-        versionName = System.getenv("FREDONNE_VERSION_NAME") ?: "0.1.0"
+        versionCode = System.getenv("FREDONNE_VERSION_CODE")?.toIntOrNull() ?: 10005
+        versionName = System.getenv("FREDONNE_VERSION_NAME") ?: "1.0.5"
         manifestPlaceholders["allowAutoBackup"] =
             providers.gradleProperty("pilmil.allowAutoBackup").getOrElse("false")
     }
