@@ -225,7 +225,10 @@ fun FredonneApp(
                                 player.playMelody(
                                     melody = state.melody,
                                     bpm = state.tempoBpm,
-                                    onEventPlaying = { m, e -> playingPosition = m to e },
+                                    onEventPlaying = { m, e ->
+                                        playingPosition = m to e
+                                        state = state.setCursor(m, e + 1)
+                                    },
                                     onFinished = {
                                         isPlaying = false
                                         playingPosition = null
@@ -575,7 +578,8 @@ private fun StaffCanvas(
 
         // Autoscroll vertical vers la ligne de portée active lors de la saisie ou de la lecture
         val activeMeasureIndex = playingPosition?.first ?: state.cursorMeasure
-        LaunchedEffect(activeMeasureIndex, state.cursorEventIndex, systemLayouts.size) {
+        val activeEventIndex = playingPosition?.second ?: state.cursorEventIndex
+        LaunchedEffect(activeMeasureIndex, activeEventIndex, systemLayouts.size) {
             val activeSystemIdx = systemLayouts.indexOfFirst { sys ->
                 sys.measures.any { it.index == activeMeasureIndex }
             }
@@ -846,8 +850,30 @@ private fun StaffCanvas(
                             }
                         }
 
-                        // Curseur d'insertion
-                        if (state.cursorMeasure == layout.index) {
+                        // Curseur : tête de lecture sur la note courante pendant l'écoute, ou curseur d'insertion à l'arrêt
+                        if (playingPosition != null) {
+                            if (playingPosition.first == layout.index && layout.eventXs.isNotEmpty()) {
+                                val playIdx = playingPosition.second.coerceIn(0, layout.eventXs.lastIndex)
+                                val playX = layout.eventXs[playIdx]
+                                val bandHalfW = (eventStepPx * 0.36f).coerceIn(10f, 18f)
+                                drawRect(
+                                    color = CursorTeal.copy(alpha = 0.14f),
+                                    topLeft = Offset(playX - bandHalfW, staffTop - lineSpacing * 0.85f),
+                                    size = Size(bandHalfW * 2f, (bottomLineY - staffTop) + lineSpacing * 1.7f),
+                                )
+                                drawLine(
+                                    color = CursorTeal,
+                                    start = Offset(playX, staffTop - lineSpacing * 0.9f),
+                                    end = Offset(playX, bottomLineY + lineSpacing * 0.9f),
+                                    strokeWidth = 3f,
+                                )
+                                drawCircle(
+                                    color = CursorTeal,
+                                    radius = 4.2f,
+                                    center = Offset(playX, staffTop - lineSpacing * 0.95f),
+                                )
+                            }
+                        } else if (state.cursorMeasure == layout.index) {
                             val cursorX = when {
                                 measure.events.isEmpty() -> layout.startX + measurePadPx
                                 state.cursorEventIndex == 0 -> layout.eventXs.first() - eventStepPx * 0.42f
@@ -1545,14 +1571,10 @@ private fun FormatsDialog(
 private fun AboutDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Fredonne · Pilmil Studio") },
         text = {
-            Text(
-                "Bloc-notes mélodique à une voix, 100 % hors-ligne.\n\n" +
-                    "Aucune permission réseau, aucun traceur, aucun compte.\n" +
-                    "Licence libre MPL-2.0.\n\n" +
-                    "Contact : pilmil.studio@proton.me",
-                fontSize = 14.sp,
+            PilmilLegalSection(
+                appName = "Fredonne",
+                appSummary = "Bloc-notes mélodique à une voix, 100 % hors-ligne.",
             )
         },
         confirmButton = {
