@@ -36,6 +36,7 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
@@ -156,6 +157,8 @@ fun FredonneTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = FredonneColorScheme, content = content)
 }
 
+private const val AUTOSAVE_DELAY_MS = 700L
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FredonneApp(
@@ -163,15 +166,31 @@ fun FredonneApp(
     initialEditorState: EditorState? = null,
 ) {
     val prefs = rememberFredonnePrefs()
+    val sessionStoreHolder = rememberSessionStore()
     var onboarded by remember { mutableStateOf(initialOnboarded ?: prefs.onboarded) }
     var finishOnboardingAfterMic by remember { mutableStateOf(false) }
     var pendingOnboardingInstrument by remember { mutableStateOf<Instrument?>(null) }
     var pendingOnboardingSample by remember { mutableStateOf(false) }
+    val sessionRepository = remember { SessionRepository(sessionStoreHolder) }
     var state by remember {
         mutableStateOf(
-            initialEditorState ?: EditorState(instrument = prefs.preferredInstrumentId?.let(Instruments::byId))
+            initialEditorState
+                ?: sessionRepository.load()
+                ?: EditorState(instrument = prefs.preferredInstrumentId?.let(Instruments::byId))
         )
     }
+
+    // Enregistrement automatique : regroupé sur un court délai, forcé à la mise en arrière-plan.
+    // Désactivé quand l'état initial est imposé (captures d'écran, tests).
+    val autosave = remember { AutosaveScheduler(sessionRepository) }
+    val persistable = state.copy(undoStack = emptyList(), redoStack = emptyList())
+    LaunchedEffect(persistable, onboarded) {
+        if (initialEditorState != null || !onboarded) return@LaunchedEffect
+        val token = autosave.schedule(persistable)
+        delay(AUTOSAVE_DELAY_MS)
+        autosave.commit(token)
+    }
+    OnAppBackground { autosave.flush() }
 
     fun completeOnboarding(instrument: Instrument?, withSample: Boolean) {
         prefs.preferredInstrumentId = instrument?.id
@@ -220,6 +239,9 @@ fun FredonneApp(
     var showRehearsalDialog by remember { mutableStateOf(false) }
     var showLyricDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
+    var showConfirmClearDialog by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
     var showTunerDialog by remember { mutableStateOf(false) }
     var showHumDialog by remember { mutableStateOf(false) }
     var baseOctave by remember { mutableIntStateOf(4) }
@@ -316,8 +338,41 @@ fun FredonneApp(
                     ) {
                         Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Rétablir")
                     }
-                    IconButton(onClick = { showAboutDialog = true }) {
-                        Icon(Icons.Default.Info, contentDescription = "À propos")
+                    IconButton(onClick = { showOverflowMenu = true }) {
+                        Icon(androidx.compose.material.icons.Icons.Default.MoreVert, contentDescription = "Menu")
+                    }
+                    androidx.compose.material3.DropdownMenu(
+                        expanded = showOverflowMenu,
+                        onDismissRequest = { showOverflowMenu = false },
+                    ) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Réglages & Micro") },
+                            onClick = {
+                                showOverflowMenu = false
+                                showSettingsDialog = true
+                            },
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Charger l'exemple (Frère Jacques)") },
+                            onClick = {
+                                showOverflowMenu = false
+                                state = state.loadSampleMelody()
+                            },
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Effacer la portée") },
+                            onClick = {
+                                showOverflowMenu = false
+                                showConfirmClearDialog = true
+                            },
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("À propos") },
+                            onClick = {
+                                showOverflowMenu = false
+                                showAboutDialog = true
+                            },
+                        )
                     }
                 },
             )
@@ -396,33 +451,6 @@ fun FredonneApp(
                         },
                     )
                 }
-                AssistChip(
-                    onClick = { state = state.loadSampleMelody() },
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.MusicNote,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                        )
-                    },
-                    label = { Text("Exemple") },
-                )
-                AssistChip(
-                    onClick = {
-                        player.stop()
-                        isPlaying = false
-                        playingPosition = null
-                        state = state.clearAll()
-                    },
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.DeleteSweep,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                        )
-                    },
-                    label = { Text("Effacer") },
-                )
             }
 
             // Portée interactive
@@ -612,11 +640,39 @@ fun FredonneApp(
         )
     }
 
-    if (showAboutDialog) {
-        AboutDialog(
-            micPermission = micPermission,
-            onDismiss = { showAboutDialog = false },
+    if (showConfirmClearDialog) {
+        AlertDialog(
+            onDismissRequest = { showConfirmClearDialog = false },
+            title = { Text("Effacer la portée ?") },
+            text = { Text("Toutes les notes saisies seront supprimées (vous pourrez encore utiliser Annuler).") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        player.stop()
+                        isPlaying = false
+                        playingPosition = null
+                        state = state.clearAll()
+                        showConfirmClearDialog = false
+                    },
+                ) { Text("Effacer") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmClearDialog = false }) { Text("Annuler") }
+            },
         )
+    }
+
+    if (showSettingsDialog) {
+        SettingsDialog(
+            referenceA4Hz = state.tunerReferenceA4Hz,
+            onChangeReferenceA4 = { hz -> state = state.setTunerReferenceA4Hz(hz) },
+            micPermission = micPermission,
+            onDismiss = { showSettingsDialog = false },
+        )
+    }
+
+    if (showAboutDialog) {
+        AboutDialog(onDismiss = { showAboutDialog = false })
     }
 }
 
@@ -2219,21 +2275,21 @@ private fun HumDialog(
 }
 
 @Composable
-private fun AboutDialog(
+private fun SettingsDialog(
+    referenceA4Hz: Double,
+    onChangeReferenceA4: (Double) -> Unit,
     micPermission: MicPermissionState,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        title = { Text("Réglages") },
         text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Microphone & Accordeur", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = InkColor)
                 if (micPermission.granted) {
                     Text(
-                        "Microphone autorisé : l'accordeur et la dictée « Fredonner » sont visibles dans la barre d'outils.",
+                        "Microphone autorisé : l'accordeur et la dictée « Fredonner » sont actifs dans la barre d'outils.",
                         fontSize = 13.sp,
                         color = MutedInk,
                     )
@@ -2248,15 +2304,38 @@ private fun AboutDialog(
                             Text("Autoriser le micro")
                         }
                         OutlinedButton(onClick = micPermission.openSettings) {
-                            Text("Réglages")
+                            Text("Réglages système")
                         }
                     }
                 }
-                PilmilLegalSection(
-                    appName = "Fredonne",
-                    appSummary = "Bloc-notes mélodique à une voix, 100 % hors-ligne.",
-                )
+                HorizontalDivider(color = Color(0xFFECE9E2))
+                Text("Diapason (La4)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = InkColor)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(440.0, 442.0).forEach { hz ->
+                        FilterChip(
+                            selected = kotlin.math.abs(referenceA4Hz - hz) < 0.5,
+                            onClick = { onChangeReferenceA4(hz) },
+                            label = { Text("${hz.toInt()} Hz") },
+                        )
+                    }
+                }
             }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Fermer") }
+        },
+    )
+}
+
+@Composable
+private fun AboutDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        text = {
+            PilmilLegalSection(
+                appName = "Fredonne",
+                appSummary = "Bloc-notes mélodique à une voix, 100 % hors-ligne.",
+            )
         },
         confirmButton = {
             TextButton(onClick = onDismiss) { Text("Fermer") }
