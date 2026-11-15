@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "fr.fredonne.app"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "fr.fredonne.app"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 35
         versionCode = System.getenv("FREDONNE_VERSION_CODE")?.toIntOrNull() ?: 10005
         versionName = System.getenv("FREDONNE_VERSION_NAME") ?: "1.0.5"
         manifestPlaceholders["allowAutoBackup"] =
@@ -34,7 +34,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             signingConfig = signingConfigs.findByName("release")
         }
     }

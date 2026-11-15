@@ -1,5 +1,6 @@
 package fr.fredonne.app
 
+import fr.fredonne.core.music.AbcCodec
 import fr.fredonne.core.music.Direction
 import fr.fredonne.core.music.Durations
 import fr.fredonne.core.music.Event
@@ -16,6 +17,7 @@ import fr.fredonne.core.music.MusicTheory
 import fr.fredonne.core.music.MusicXmlCodec
 import fr.fredonne.core.music.Note
 import fr.fredonne.core.music.Pitch
+import fr.fredonne.core.music.PracticeLoop
 import fr.fredonne.core.music.Rest
 import fr.fredonne.core.music.ScorePdfGenerator
 import fr.fredonne.core.music.ShareCodec
@@ -39,9 +41,37 @@ data class EditorState(
     val cursorMeasure: Int = 0,
     val cursorEventIndex: Int = 0,
     val tempoBpm: Int = 96,
+    val loopEnabled: Boolean = false,
+    val loopStartMeasure: Int = 0,
+    val loopEndMeasure: Int = 0,
+    val playbackSpeed: Double = 1.0,
+    val tunerReferenceA4Hz: Double = 440.0,
     val undoStack: List<EditorSnapshot> = emptyList(),
     val redoStack: List<EditorSnapshot> = emptyList(),
 ) {
+    val activeLoop: PracticeLoop?
+        get() {
+            if (!loopEnabled || melody.measures.isEmpty()) return null
+            val maxIdx = melody.measures.lastIndex
+            val start = loopStartMeasure.coerceIn(0, maxIdx)
+            val end = loopEndMeasure.coerceIn(start, maxIdx)
+            return PracticeLoop(start, end, playbackSpeed.coerceIn(0.25, 2.0))
+        }
+
+    val playbackMelody: Melody
+        get() = activeLoop?.sliceMelody(melody) ?: melody
+
+    val effectivePlaybackBpm: Int
+        get() = PracticeLoop(0, 0, playbackSpeed.coerceIn(0.25, 2.0)).effectiveBpm(tempoBpm)
+
+    val noteBeforeCursor: Note?
+        get() {
+            if (melody.measures.isEmpty()) return null
+            val mIdx = cursorMeasure.coerceIn(0, melody.measures.lastIndex)
+            val targetIdx = cursorEventIndex - 1
+            val events = melody.measures[mIdx].events
+            return if (targetIdx in events.indices) events[targetIdx] as? Note else null
+        }
     val effectiveDuration: Fraction
         get() = if (dotted) Durations.dotted(selectedDuration) else selectedDuration
 
@@ -295,7 +325,55 @@ data class EditorState(
 
     fun setInstrument(instrument: Instrument?): EditorState = copy(instrument = instrument)
 
-    fun setTempo(bpm: Int): EditorState = copy(tempoBpm = bpm.coerceIn(40, 200))
+    fun setTempo(bpm: Int): EditorState = copy(tempoBpm = bpm.coerceIn(30, 240))
+
+    fun toggleLoop(): EditorState {
+        if (melody.measures.isEmpty()) return copy(loopEnabled = false)
+        val maxIdx = melody.measures.lastIndex
+        val start = loopStartMeasure.coerceIn(0, maxIdx)
+        val end = if (!loopEnabled && loopEndMeasure < start) maxIdx else loopEndMeasure.coerceIn(start, maxIdx)
+        return copy(loopEnabled = !loopEnabled, loopStartMeasure = start, loopEndMeasure = end)
+    }
+
+    fun setLoopRange(startMeasure: Int, endMeasure: Int): EditorState {
+        if (melody.measures.isEmpty()) return this
+        val maxIdx = melody.measures.lastIndex
+        val start = startMeasure.coerceIn(0, maxIdx)
+        val end = endMeasure.coerceIn(start, maxIdx)
+        return copy(loopStartMeasure = start, loopEndMeasure = end)
+    }
+
+    fun setPlaybackSpeed(speed: Double): EditorState =
+        copy(playbackSpeed = speed.coerceIn(0.25, 2.0))
+
+    fun setTunerReferenceA4Hz(hz: Double): EditorState =
+        copy(tunerReferenceA4Hz = hz.coerceIn(415.0, 466.0))
+
+    fun setNoteLyricBeforeCursor(lyric: String?): EditorState {
+        if (melody.measures.isEmpty()) return this
+        val mIdx = cursorMeasure.coerceIn(0, melody.measures.lastIndex)
+        val targetIdx = cursorEventIndex - 1
+        val events = melody.measures[mIdx].events
+        val note = (if (targetIdx in events.indices) events[targetIdx] as? Note else null) ?: return this
+        val cleaned = lyric?.trim()?.takeIf { it.isNotEmpty() }
+        if (note.lyric == cleaned) return this
+        val base = pushUndo()
+        val updatedEvents = events.toMutableList().apply { this[targetIdx] = note.copy(lyric = cleaned) }
+        val updatedMeasures = base.melody.measures.toMutableList().apply { this[mIdx] = Measure(updatedEvents) }
+        return base.copy(melody = base.melody.copy(measures = updatedMeasures))
+    }
+
+    fun toggleBreathMarkBeforeCursor(): EditorState {
+        if (melody.measures.isEmpty()) return this
+        val mIdx = cursorMeasure.coerceIn(0, melody.measures.lastIndex)
+        val targetIdx = cursorEventIndex - 1
+        val events = melody.measures[mIdx].events
+        val note = (if (targetIdx in events.indices) events[targetIdx] as? Note else null) ?: return this
+        val base = pushUndo()
+        val updatedEvents = events.toMutableList().apply { this[targetIdx] = note.copy(breathMark = !note.breathMark) }
+        val updatedMeasures = base.melody.measures.toMutableList().apply { this[mIdx] = Measure(updatedEvents) }
+        return base.copy(melody = base.melody.copy(measures = updatedMeasures))
+    }
 
     fun undo(): EditorState {
         if (undoStack.isEmpty()) return this
@@ -372,11 +450,14 @@ data class EditorState(
     fun exportPdf(title: String = "Partition Fredonne"): ByteArray =
         ScorePdfGenerator.generate(melody = melody, instrument = instrument, tempoBpm = tempoBpm, title = title)
 
+    fun exportAbc(title: String = "Partition Fredonne"): String =
+        AbcCodec.encode(melody = melody, instrument = instrument, tempoBpm = tempoBpm, title = title)
+
     fun exportShareCode(): String =
-        ShareCodec.encode(melody = melody, instrument = instrument, tempoBpm = tempoBpm)
+        AbcCodec.encode(melody = melody, instrument = instrument, tempoBpm = tempoBpm)
 
     fun importShareCode(code: String): EditorState {
-        val shared = ShareCodec.decode(code)
+        val shared = ShareCodec.decodeAny(code)
         val base = pushUndo()
         return base.copy(
             melody = shared.melody,

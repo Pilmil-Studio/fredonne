@@ -40,6 +40,8 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -64,6 +66,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -87,6 +90,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import fr.fredonne.core.music.AudioMelodyTranscriber
+import fr.fredonne.core.music.ChromaticTuner
 import fr.fredonne.core.music.Clef
 import fr.fredonne.core.music.Direction
 import fr.fredonne.core.music.DoubleAlterationOnHarp
@@ -101,6 +106,8 @@ import fr.fredonne.core.music.Key
 import fr.fredonne.core.music.LeverChangeRequired
 import fr.fredonne.core.music.MeasureTooLong
 import fr.fredonne.core.music.MeasureTooShort
+import fr.fredonne.core.music.Melody
+import fr.fredonne.core.music.MetronomeEngine
 import fr.fredonne.core.music.Mode
 import fr.fredonne.core.music.MusicTheory
 import fr.fredonne.core.music.Note
@@ -109,12 +116,20 @@ import fr.fredonne.core.music.ParallelFifths
 import fr.fredonne.core.music.ParallelOctaves
 import fr.fredonne.core.music.PedalChangeRequired
 import fr.fredonne.core.music.Pitch
+import fr.fredonne.core.music.PracticeLoop
+import fr.fredonne.core.music.QrChunker
 import fr.fredonne.core.music.QrCodeEncoder
 import fr.fredonne.core.music.Rest
 import fr.fredonne.core.music.Step
+import fr.fredonne.core.music.TapTempoTracker
+import fr.fredonne.core.music.TunerReading
+import fr.fredonne.core.music.TuningStatus
 import fr.fredonne.core.music.VoiceCrossing
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import kotlin.time.TimeSource
 
 private val PaperBg = Color(0xFFFAF8F4)
 private val CardBg = Color(0xFFFFFFFF)
@@ -149,25 +164,46 @@ fun FredonneApp(
 ) {
     val prefs = rememberFredonnePrefs()
     var onboarded by remember { mutableStateOf(initialOnboarded ?: prefs.onboarded) }
+    var finishOnboardingAfterMic by remember { mutableStateOf(false) }
+    var pendingOnboardingInstrument by remember { mutableStateOf<Instrument?>(null) }
+    var pendingOnboardingSample by remember { mutableStateOf(false) }
     var state by remember {
         mutableStateOf(
             initialEditorState ?: EditorState(instrument = prefs.preferredInstrumentId?.let(Instruments::byId))
         )
     }
 
+    fun completeOnboarding(instrument: Instrument?, withSample: Boolean) {
+        prefs.preferredInstrumentId = instrument?.id
+        prefs.onboarded = true
+        state = EditorState(
+            melody = if (withSample) EditorState.sampleMelody() else EditorState.defaultMelody(),
+            instrument = instrument,
+            cursorMeasure = if (withSample) 1 else 0,
+            cursorEventIndex = if (withSample) 3 else 0,
+        )
+        onboarded = true
+    }
+
+    val micPermission = rememberMicPermissionState { _ ->
+        if (finishOnboardingAfterMic) {
+            finishOnboardingAfterMic = false
+            completeOnboarding(pendingOnboardingInstrument, pendingOnboardingSample)
+        }
+    }
+
     if (!onboarded) {
         OnboardingScreen(
             initialInstrument = state.instrument,
+            micGranted = micPermission.granted,
+            onRequestMicAndFinish = { instrument, withSample ->
+                pendingOnboardingInstrument = instrument
+                pendingOnboardingSample = withSample
+                finishOnboardingAfterMic = true
+                micPermission.request()
+            },
             onFinish = { instrument, withSample ->
-                prefs.preferredInstrumentId = instrument?.id
-                prefs.onboarded = true
-                state = EditorState(
-                    melody = if (withSample) EditorState.sampleMelody() else EditorState.defaultMelody(),
-                    instrument = instrument,
-                    cursorMeasure = if (withSample) 1 else 0,
-                    cursorEventIndex = if (withSample) 3 else 0,
-                )
-                onboarded = true
+                completeOnboarding(instrument, withSample)
             },
         )
         return
@@ -181,8 +217,44 @@ fun FredonneApp(
     var showKeyDialog by remember { mutableStateOf(false) }
     var showInstrumentDialog by remember { mutableStateOf(false) }
     var showFormatsDialog by remember { mutableStateOf(false) }
+    var showRehearsalDialog by remember { mutableStateOf(false) }
+    var showLyricDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
+    var showTunerDialog by remember { mutableStateOf(false) }
+    var showHumDialog by remember { mutableStateOf(false) }
     var baseOctave by remember { mutableIntStateOf(4) }
+    val latestState by rememberUpdatedState(state)
+    val latestIsPlaying by rememberUpdatedState(isPlaying)
+    val playbackScope = rememberCoroutineScope()
+
+    fun launchPlayback() {
+        val current = latestState
+        val loopOffset = current.activeLoop?.startMeasure ?: 0
+        player.playMelody(
+            melody = current.playbackMelody,
+            bpm = current.effectivePlaybackBpm,
+            onEventPlaying = { m, e ->
+                playbackScope.launch(Dispatchers.Main.immediate) {
+                    if (!latestIsPlaying) return@launch
+                    val globalMeasure = m + loopOffset
+                    playingPosition = globalMeasure to e
+                    state = latestState.setCursor(globalMeasure, e + 1)
+                }
+            },
+            onFinished = {
+                playbackScope.launch(Dispatchers.Main.immediate) {
+                    if (latestIsPlaying && latestState.loopEnabled) {
+                        launchPlayback()
+                    } else {
+                        isPlaying = false
+                        playingPosition = null
+                    }
+                }
+            },
+            timbre = ToneSynthesizer.timbreForInstrument(current.instrument),
+            referenceA4Hz = current.tunerReferenceA4Hz,
+        )
+    }
 
     DisposableEffect(Unit) {
         onDispose { player.stop() }
@@ -222,19 +294,7 @@ fun FredonneApp(
                                 playingPosition = null
                             } else {
                                 isPlaying = true
-                                player.playMelody(
-                                    melody = state.melody,
-                                    bpm = state.tempoBpm,
-                                    onEventPlaying = { m, e ->
-                                        playingPosition = m to e
-                                        state = state.setCursor(m, e + 1)
-                                    },
-                                    onFinished = {
-                                        isPlaying = false
-                                        playingPosition = null
-                                    },
-                                    timbre = ToneSynthesizer.timbreForInstrument(state.instrument),
-                                )
+                                launchPlayback()
                             }
                         }
                     ) {
@@ -303,6 +363,39 @@ fun FredonneApp(
                     onClick = { showFormatsDialog = true },
                     label = { Text("MusicXML · MIDI · PDF") },
                 )
+                AssistChip(
+                    onClick = { showRehearsalDialog = true },
+                    label = {
+                        val suffix = buildString {
+                            if (state.loopEnabled) append(" · M${state.loopStartMeasure + 1}-${state.loopEndMeasure + 1}")
+                            if (state.playbackSpeed != 1.0) append(" · ${state.playbackSpeed}×")
+                        }
+                        Text("Répéter$suffix")
+                    },
+                )
+                if (micPermission.granted) {
+                    AssistChip(
+                        onClick = { showTunerDialog = true },
+                        label = { Text("Accordeur") },
+                    )
+                    AssistChip(
+                        onClick = { showHumDialog = true },
+                        label = { Text("Fredonner") },
+                    )
+                }
+                if (state.noteBeforeCursor != null) {
+                    AssistChip(
+                        onClick = { showLyricDialog = true },
+                        label = {
+                            val note = state.noteBeforeCursor
+                            val detail = buildString {
+                                if (!note?.lyric.isNullOrBlank()) append(" : ${note?.lyric}")
+                                if (note?.breathMark == true) append(" '")
+                            }
+                            Text("Parole · Resp.$detail")
+                        },
+                    )
+                }
                 AssistChip(
                     onClick = { state = state.loadSampleMelody() },
                     leadingIcon = {
@@ -421,6 +514,7 @@ fun FredonneApp(
                     player.playSingleNote(
                         midi = pitch.midi,
                         timbre = ToneSynthesizer.timbreForInstrument(state.instrument),
+                        referenceA4Hz = state.tunerReferenceA4Hz,
                     )
                     state = state.insertNote(pitch)
                 },
@@ -467,8 +561,62 @@ fun FredonneApp(
         )
     }
 
+    if (showRehearsalDialog) {
+        RehearsalDialog(
+            state = state,
+            player = player,
+            onUpdateState = { state = it },
+            onDismiss = { showRehearsalDialog = false },
+        )
+    }
+
+    if (showLyricDialog) {
+        val targetNote = state.noteBeforeCursor
+        if (targetNote != null) {
+            LyricAndBreathDialog(
+                note = targetNote,
+                onSave = { lyric, breath ->
+                    var updated = state.setNoteLyricBeforeCursor(lyric)
+                    if (updated.noteBeforeCursor?.breathMark != breath) {
+                        updated = updated.toggleBreathMarkBeforeCursor()
+                    }
+                    state = updated
+                    showLyricDialog = false
+                },
+                onDismiss = { showLyricDialog = false },
+            )
+        } else {
+            showLyricDialog = false
+        }
+    }
+
+    if (showTunerDialog && micPermission.granted) {
+        TunerDialog(
+            referenceA4Hz = state.tunerReferenceA4Hz,
+            onDismiss = { showTunerDialog = false },
+        )
+    }
+
+    if (showHumDialog && micPermission.granted) {
+        HumDialog(
+            state = state,
+            onApplyMelody = { transcribed ->
+                state = state.copy(
+                    melody = transcribed,
+                    cursorMeasure = 0,
+                    cursorEventIndex = 0,
+                )
+                showHumDialog = false
+            },
+            onDismiss = { showHumDialog = false },
+        )
+    }
+
     if (showAboutDialog) {
-        AboutDialog(onDismiss = { showAboutDialog = false })
+        AboutDialog(
+            micPermission = micPermission,
+            onDismiss = { showAboutDialog = false },
+        )
     }
 }
 
@@ -660,14 +808,21 @@ private fun StaffCanvas(
                         strokeWidth = 2.6f,
                     )
 
-                    // Clé (Sol, Sol 8vb ou Fa) + armure + chiffrage
+                    // Clé (Sol, Sol 8vb, Fa, Ut 3 ou Ut 4) + armure + chiffrage
                     drawText(
                         textMeasurer = textMeasurer,
                         text = clef.displaySymbol,
-                        topLeft = Offset(20f, staffTop + lineSpacing * (if (clef == Clef.BASS) 0.15f else 0.55f)),
+                        topLeft = Offset(
+                            20f,
+                            staffTop + lineSpacing * when (clef) {
+                                Clef.BASS -> 0.15f
+                                Clef.ALTO, Clef.TENOR -> 0.35f
+                                else -> 0.55f
+                            },
+                        ),
                         style = TextStyle(
                             color = AccentSage,
-                            fontSize = if (clef == Clef.TREBLE) 25.sp else 19.sp,
+                            fontSize = if (clef == Clef.TREBLE) 25.sp else 18.sp,
                             fontFamily = FontFamily.Serif,
                             fontWeight = FontWeight.Bold,
                         ),
@@ -830,6 +985,25 @@ private fun StaffCanvas(
                                             text = pedalIssue.pedalLabel,
                                             topLeft = Offset(cx - 12f, bottomLineY + lineSpacing * 0.55f),
                                             style = TextStyle(color = WarnAmber, fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                                        )
+                                    }
+
+                                    if (event.breathMark) {
+                                        drawText(
+                                            textMeasurer = textMeasurer,
+                                            text = "'",
+                                            topLeft = Offset(cx + rx + 4f, staffTop - lineSpacing * 1.15f),
+                                            style = TextStyle(color = AccentSage, fontSize = 15.sp, fontWeight = FontWeight.Bold),
+                                        )
+                                    }
+
+                                    val lyricText = event.lyric?.trim().orEmpty()
+                                    if (lyricText.isNotEmpty()) {
+                                        drawText(
+                                            textMeasurer = textMeasurer,
+                                            text = lyricText,
+                                            topLeft = Offset(cx - (lyricText.length * 3.1f), bottomLineY + lineSpacing * 1.45f),
+                                            style = TextStyle(color = InkColor, fontSize = 10.sp, fontWeight = FontWeight.Medium),
                                         )
                                     }
                                 }
@@ -1287,10 +1461,13 @@ private fun InstrumentDialog(
 @Composable
 private fun OnboardingScreen(
     initialInstrument: Instrument?,
+    micGranted: Boolean,
+    onRequestMicAndFinish: (Instrument?, withSample: Boolean) -> Unit,
     onFinish: (Instrument?, withSample: Boolean) -> Unit,
 ) {
     var step by remember { mutableIntStateOf(0) }
     var chosenInstrument by remember { mutableStateOf(initialInstrument) }
+    var chosenWithSample by remember { mutableStateOf(false) }
     val quickInstruments: List<Instrument?> = listOf(
         null,
         Instruments.FLUTE,
@@ -1328,7 +1505,11 @@ private fun OnboardingScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Text(
-                    text = if (step == 0) "Bienvenue dans Fredonne" else "Votre instrument de départ",
+                    text = when (step) {
+                        0 -> "Bienvenue dans Fredonne"
+                        1 -> "Votre instrument de départ"
+                        else -> "Microphone (optionnel)"
+                    },
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = InkColor,
@@ -1355,7 +1536,7 @@ private fun OnboardingScreen(
                             Text("Continuer")
                         }
                     }
-                } else {
+                } else if (step == 1) {
                     Text(
                         text = "La portée affichera automatiquement l'écriture transposée pour cet instrument (modifiable à tout moment).",
                         fontSize = 14.sp,
@@ -1387,16 +1568,58 @@ private fun OnboardingScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         OutlinedButton(
-                            onClick = { onFinish(chosenInstrument, false) },
+                            onClick = {
+                                if (micGranted) onFinish(chosenInstrument, false)
+                                else {
+                                    chosenWithSample = false
+                                    step = 2
+                                }
+                            },
                             modifier = Modifier.weight(1f),
                         ) {
                             Text("Portée vierge")
                         }
                         androidx.compose.material3.Button(
-                            onClick = { onFinish(chosenInstrument, true) },
+                            onClick = {
+                                if (micGranted) onFinish(chosenInstrument, true)
+                                else {
+                                    chosenWithSample = true
+                                    step = 2
+                                }
+                            },
                             modifier = Modifier.weight(1f),
                         ) {
                             Text("Avec exemple")
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "Pour fredonner une mélodie directement sur la portée et afficher l'accordeur chromatique, Fredonne a besoin d'accéder au microphone.",
+                        fontSize = 15.sp,
+                        color = MutedInk,
+                        lineHeight = 22.sp,
+                    )
+                    Text(
+                        text = "Tout le traitement audio reste 100 % sur votre appareil : rien n'est enregistré ni envoyé. Si vous refusez, l'accordeur et la dictée vocale resteront masqués et vous pourrez les activer plus tard dans À propos / Réglages.",
+                        fontSize = 14.sp,
+                        color = MutedInk,
+                        lineHeight = 20.sp,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedButton(
+                            onClick = { onFinish(chosenInstrument, chosenWithSample) },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Plus tard")
+                        }
+                        androidx.compose.material3.Button(
+                            onClick = { onRequestMicAndFinish(chosenInstrument, chosenWithSample) },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Autoriser le micro")
                         }
                     }
                 }
@@ -1413,14 +1636,38 @@ private fun FormatsDialog(
     onDismiss: () -> Unit,
 ) {
     var statusMessage by remember { mutableStateOf<String?>(null) }
+    var showQrScanner by remember { mutableStateOf(false) }
     var shareCodeText by remember(state.melody, state.instrument, state.tempoBpm) {
         mutableStateOf(state.exportShareCode())
     }
-    val qrMatrix = remember(shareCodeText) {
-        runCatching { QrCodeEncoder.encode(shareCodeText) }.getOrNull()
+    val qrChunks = remember(shareCodeText) {
+        QrChunker.split(shareCodeText)
+    }
+    var qrPageIndex by remember(qrChunks) { mutableStateOf(0) }
+    val currentChunk = qrChunks.getOrNull(qrPageIndex).orEmpty()
+    val qrMatrix = remember(currentChunk) {
+        if (currentChunk.isEmpty()) null else QrCodeEncoder.encodeOrNull(currentChunk)
     }
     var xmlText by remember(state.melody, state.instrument) {
         mutableStateOf(state.exportMusicXml())
+    }
+
+    if (showQrScanner) {
+        QrScannerDialog(
+            onPayloadAssembled = { payload ->
+                showQrScanner = false
+                shareCodeText = payload
+                runCatching { state.importShareCode(payload) }
+                    .onSuccess { updated ->
+                        onUpdateState(updated)
+                        statusMessage = "Partition importée depuis le QR code (${updated.melody.measures.size} mesures)"
+                    }
+                    .onFailure {
+                        statusMessage = "QR lu mais format invalide : ${it.message ?: "format non reconnu"}"
+                    }
+            },
+            onDismiss = { showQrScanner = false },
+        )
     }
 
     AlertDialog(
@@ -1473,15 +1720,36 @@ private fun FormatsDialog(
                             mimeType = "application/pdf",
                             bytes = pdf,
                         )
-                        statusMessage = "PDF A4 avec QR code exporté (${pdf.size} octets · $path)"
+                        statusMessage = "PDF A4 avec QR code ABC exporté (${pdf.size} octets · $path)"
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("Exporter la partition en PDF (.pdf)")
                 }
+                OutlinedButton(
+                    onClick = {
+                        val abc = state.exportAbc()
+                        val path = exporter.exportBytes(
+                            fileName = "fredonne_partition.abc",
+                            mimeType = "text/vnd.abc",
+                            bytes = abc.encodeToByteArray(),
+                        )
+                        statusMessage = "Notation ABC exportée ($path)"
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Exporter en notation ABC (.abc)")
+                }
 
                 HorizontalDivider()
-                Text("QR Code & code de reprise rapide (imprimé sur le PDF) :", fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                Text("QR Code ABC & code de reprise rapide :", fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                Button(
+                    onClick = { showQrScanner = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentSage),
+                ) {
+                    Text("Scanner un QR code (papier ou écran)")
+                }
                 if (qrMatrix != null) {
                     Box(
                         modifier = Modifier.fillMaxWidth(),
@@ -1489,7 +1757,7 @@ private fun FormatsDialog(
                     ) {
                         Canvas(
                             modifier = Modifier
-                                .size(132.dp)
+                                .size(136.dp)
                                 .background(Color.White, RoundedCornerShape(8.dp))
                                 .border(1.dp, Color(0xFFD8D5CC), RoundedCornerShape(8.dp))
                                 .padding(8.dp),
@@ -1509,24 +1777,55 @@ private fun FormatsDialog(
                             }
                         }
                     }
+                    if (qrChunks.size > 1) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            TextButton(
+                                onClick = { if (qrPageIndex > 0) qrPageIndex-- },
+                                enabled = qrPageIndex > 0,
+                            ) { Text("Précédent") }
+                            Text(
+                                text = "QR ${qrPageIndex + 1} / ${qrChunks.size}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MutedInk,
+                            )
+                            TextButton(
+                                onClick = { if (qrPageIndex < qrChunks.lastIndex) qrPageIndex++ },
+                                enabled = qrPageIndex < qrChunks.lastIndex,
+                            ) { Text("Suivant") }
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "Partition trop dense pour un QR code. Utilisez l'export ABC ou MusicXML.",
+                        fontSize = 12.sp,
+                        color = MutedInk,
+                    )
                 }
                 OutlinedTextField(
                     value = shareCodeText,
                     onValueChange = { shareCodeText = it },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
+                    maxLines = 4,
                     textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
                 )
                 OutlinedButton(
                     onClick = {
                         runCatching { state.importShareCode(shareCodeText) }
-                            .onSuccess { updated -> onUpdateState(updated) }
-                            .onFailure { statusMessage = "Erreur code QR : ${it.message ?: "code invalide"}" }
+                            .onSuccess { updated ->
+                                onUpdateState(updated)
+                                statusMessage = "Partition importée (${updated.melody.measures.size} mesures)"
+                            }
+                            .onFailure { statusMessage = "Erreur code QR / ABC : ${it.message ?: "format invalide"}" }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     border = BorderStroke(1.dp, AccentSage),
                 ) {
-                    Text("Reprendre la partition depuis ce code QR", color = AccentSage)
+                    Text("Reprendre la partition (ABC ou FR1)", color = AccentSage)
                 }
 
                 HorizontalDivider()
@@ -1568,14 +1867,396 @@ private fun FormatsDialog(
 }
 
 @Composable
-private fun AboutDialog(onDismiss: () -> Unit) {
+private fun RehearsalDialog(
+    state: EditorState,
+    player: TonePlayer,
+    onUpdateState: (EditorState) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tracker = remember { TapTempoTracker() }
+    val clockStart = remember { TimeSource.Monotonic.markNow() }
+    var metronomeRunning by remember { mutableStateOf(false) }
+    var currentBeat by remember { mutableIntStateOf(-1) }
+
+    LaunchedEffect(metronomeRunning, state.tempoBpm, state.melody.time) {
+        if (!metronomeRunning) {
+            currentBeat = -1
+            return@LaunchedEffect
+        }
+        val beatsPerBar = state.melody.time.beats.coerceAtLeast(1)
+        var beatIdx = 0
+        while (metronomeRunning) {
+            currentBeat = beatIdx % beatsPerBar
+            val intervalMs = MetronomeEngine.beatIntervalMs(state.tempoBpm).roundToInt().toLong()
+            delay(intervalMs)
+            beatIdx++
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Outils de répétition") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("Métronome & Tap Tempo", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            val nowMs = clockStart.elapsedNow().inWholeMilliseconds
+                            tracker.tap(nowMs)?.let { bpm -> onUpdateState(state.setTempo(bpm)) }
+                        },
+                    ) {
+                        Text("Tap (${state.tempoBpm})")
+                    }
+                    FilterChip(
+                        selected = metronomeRunning,
+                        onClick = { metronomeRunning = !metronomeRunning },
+                        label = { Text(if (metronomeRunning) "Arrêter" else "Métronome") },
+                    )
+                }
+                if (metronomeRunning) {
+                    val beatsPerBar = state.melody.time.beats.coerceAtLeast(1)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        for (b in 0 until beatsPerBar) {
+                            val active = b == currentBeat
+                            val color = when {
+                                active && b == 0 -> AccentSage
+                                active -> CursorTeal
+                                else -> Color(0xFFE0DDD5)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(if (b == 0) 16.dp else 12.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(color),
+                            )
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+
+                Text("Boucle A–B & Vitesse", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    FilterChip(
+                        selected = state.loopEnabled,
+                        onClick = { onUpdateState(state.toggleLoop()) },
+                        label = { Text(if (state.loopEnabled) "Boucle active" else "Activer boucle") },
+                    )
+                    if (state.loopEnabled && state.melody.measures.isNotEmpty()) {
+                        val maxIdx = state.melody.measures.lastIndex
+                        Text(
+                            "M${state.loopStartMeasure + 1}–M${state.loopEndMeasure + 1}",
+                            fontSize = 13.sp,
+                            color = AccentSage,
+                            fontWeight = FontWeight.Medium,
+                        )
+                        TextButton(
+                            onClick = {
+                                val nextStart = (state.loopStartMeasure + 1).coerceAtMost(state.loopEndMeasure)
+                                onUpdateState(state.setLoopRange(nextStart, state.loopEndMeasure))
+                            },
+                            enabled = state.loopStartMeasure < state.loopEndMeasure,
+                        ) { Text("A+") }
+                        TextButton(
+                            onClick = {
+                                val prevStart = (state.loopStartMeasure - 1).coerceAtLeast(0)
+                                onUpdateState(state.setLoopRange(prevStart, state.loopEndMeasure))
+                            },
+                            enabled = state.loopStartMeasure > 0,
+                        ) { Text("A-") }
+                        TextButton(
+                            onClick = {
+                                val nextEnd = (state.loopEndMeasure + 1).coerceAtMost(maxIdx)
+                                onUpdateState(state.setLoopRange(state.loopStartMeasure, nextEnd))
+                            },
+                            enabled = state.loopEndMeasure < maxIdx,
+                        ) { Text("B+") }
+                        TextButton(
+                            onClick = {
+                                val prevEnd = (state.loopEndMeasure - 1).coerceAtLeast(state.loopStartMeasure)
+                                onUpdateState(state.setLoopRange(state.loopStartMeasure, prevEnd))
+                            },
+                            enabled = state.loopEndMeasure > state.loopStartMeasure,
+                        ) { Text("B-") }
+                    }
+                }
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    PracticeLoop.PRESET_SPEEDS.forEach { spd ->
+                        FilterChip(
+                            selected = state.playbackSpeed == spd,
+                            onClick = { onUpdateState(state.setPlaybackSpeed(spd)) },
+                            label = { Text("${spd}×") },
+                        )
+                    }
+                }
+
+                HorizontalDivider()
+
+                Text("Diapason (référence La4)", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    listOf(440.0, 442.0).forEach { hz ->
+                        FilterChip(
+                            selected = state.tunerReferenceA4Hz == hz,
+                            onClick = { onUpdateState(state.setTunerReferenceA4Hz(hz)) },
+                            label = { Text("${hz.toInt()} Hz") },
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            player.playSingleNote(
+                                midi = 69,
+                                durationMs = 1100,
+                                timbre = InstrumentTimbre.FLUTE,
+                                referenceA4Hz = state.tunerReferenceA4Hz,
+                            )
+                        },
+                    ) {
+                        Text("Écouter La4")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Fermer") }
+        },
+    )
+}
+
+@Composable
+private fun LyricAndBreathDialog(
+    note: Note,
+    onSave: (lyric: String?, breathMark: Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var lyricText by remember(note) { mutableStateOf(note.lyric.orEmpty()) }
+    var breath by remember(note) { mutableStateOf(note.breathMark) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Parole & respiration") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = lyricText,
+                    onValueChange = { lyricText = it },
+                    label = { Text("Syllabe sous la note") },
+                    singleLine = true,
+                )
+                FilterChip(
+                    selected = breath,
+                    onClick = { breath = !breath },
+                    label = { Text(if (breath) "Respiration (') activée" else "Ajouter une respiration (')") },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(lyricText, breath) }) { Text("Enregistrer") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Annuler") }
+        },
+    )
+}
+
+@Composable
+private fun TunerDialog(
+    referenceA4Hz: Double,
+    onDismiss: () -> Unit,
+) {
+    val tuner = remember(referenceA4Hz) { ChromaticTuner(referenceA4Hz = referenceA4Hz) }
+    var reading by remember { mutableStateOf<TunerReading?>(null) }
+
+    DisposableEffect(tuner) {
+        val session = createLiveMicSession()
+        val ring = FloatArray(2048)
+        var filled = 0
+        session?.start(16_000) { chunk ->
+            for (s in chunk) {
+                if (filled < ring.size) {
+                    ring[filled++] = s
+                } else {
+                    ring.copyInto(ring, destinationOffset = 0, startIndex = 1)
+                    ring[ring.lastIndex] = s
+                }
+            }
+            if (filled >= 1024) {
+                reading = tuner.analyzeSamples(ring.copyOf(filled), 16_000)
+            }
+        }
+        onDispose { session?.stop() }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Accordeur (La = ${referenceA4Hz.toInt()} Hz)") },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                val r = reading
+                if (r == null) {
+                    Text("Jouez ou fredonnez une note…", color = MutedInk)
+                } else {
+                    val noteName = frenchNoteName(r.nearestPitch.step) + when (r.nearestPitch.alter) {
+                        1 -> "#"
+                        -1 -> "b"
+                        else -> ""
+                    } + r.nearestPitch.octave
+                    Text(noteName, fontSize = 32.sp, fontWeight = FontWeight.Bold, color = AccentSage)
+                    val cents = kotlin.math.round(r.centsOffset).toInt()
+                    val statusLabel = when (r.status) {
+                        TuningStatus.IN_TUNE -> "Juste"
+                        TuningStatus.FLAT -> "Trop bas ($cents cents)"
+                        TuningStatus.SHARP -> "Trop haut (+$cents cents)"
+                    }
+                    Text(statusLabel, fontWeight = FontWeight.SemiBold)
+                    Text("${kotlin.math.round(r.frequencyHz * 10) / 10.0} Hz", fontSize = 13.sp, color = MutedInk)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Fermer") }
+        },
+    )
+}
+
+@Composable
+private fun HumDialog(
+    state: EditorState,
+    onApplyMelody: (Melody) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var recording by remember { mutableStateOf(false) }
+    var status by remember { mutableStateOf("Appuyez sur Enregistrer puis fredonnez une courte phrase.") }
+    val buffer = remember { mutableListOf<Float>() }
+    var session by remember { mutableStateOf<LiveMicSession?>(null) }
+
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { session?.stop() }
+    }
+
+    AlertDialog(
+        onDismissRequest = {
+            session?.stop()
+            onDismiss()
+        },
+        title = { Text("Fredonner une mélodie") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(status, fontSize = 14.sp, color = MutedInk)
+                androidx.compose.material3.Button(
+                    onClick = {
+                        if (!recording) {
+                            buffer.clear()
+                            val mic = createLiveMicSession()
+                            if (mic == null) {
+                                status = "Capture micro indisponible sur cet appareil."
+                                return@Button
+                            }
+                            session = mic
+                            recording = true
+                            status = "Enregistrement en cours… Fredonnez puis appuyez sur Terminer."
+                            mic.start(16_000) { chunk ->
+                                if (buffer.size < 16_000 * 20) {
+                                    for (s in chunk) buffer.add(s)
+                                }
+                            }
+                        } else {
+                            recording = false
+                            session?.stop()
+                            session = null
+                            val samples = buffer.toFloatArray()
+                            if (samples.size < 4000) {
+                                status = "Enregistrement trop court, réessayez."
+                            } else {
+                                val transcribed = AudioMelodyTranscriber(
+                                    fr.fredonne.core.music.AudioPitchDetector(sampleRate = 16_000),
+                                ).transcribePcm(
+                                    pcm = samples,
+                                    bpm = state.tempoBpm,
+                                    time = state.melody.time,
+                                    key = state.melody.key,
+                                )
+                                onApplyMelody(transcribed)
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (recording) "Terminer et transcrire" else "Enregistrer")
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(
+                onClick = {
+                    session?.stop()
+                    onDismiss()
+                },
+            ) { Text("Annuler") }
+        },
+    )
+}
+
+@Composable
+private fun AboutDialog(
+    micPermission: MicPermissionState,
+    onDismiss: () -> Unit,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         text = {
-            PilmilLegalSection(
-                appName = "Fredonne",
-                appSummary = "Bloc-notes mélodique à une voix, 100 % hors-ligne.",
-            )
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("Microphone & Accordeur", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = InkColor)
+                if (micPermission.granted) {
+                    Text(
+                        "Microphone autorisé : l'accordeur et la dictée « Fredonner » sont visibles dans la barre d'outils.",
+                        fontSize = 13.sp,
+                        color = MutedInk,
+                    )
+                } else {
+                    Text(
+                        "Microphone non autorisé : l'accordeur et la dictée vocale sont masqués. Activez le micro pour les faire apparaître.",
+                        fontSize = 13.sp,
+                        color = MutedInk,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        androidx.compose.material3.Button(onClick = micPermission.request) {
+                            Text("Autoriser le micro")
+                        }
+                        OutlinedButton(onClick = micPermission.openSettings) {
+                            Text("Réglages")
+                        }
+                    }
+                }
+                PilmilLegalSection(
+                    appName = "Fredonne",
+                    appSummary = "Bloc-notes mélodique à une voix, 100 % hors-ligne.",
+                )
+            }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) { Text("Fermer") }

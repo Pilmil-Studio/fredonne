@@ -13,6 +13,7 @@ expect class TonePlayer() {
         midi: Int,
         durationMs: Int = 520,
         timbre: InstrumentTimbre = InstrumentTimbre.WARM_KEYS,
+        referenceA4Hz: Double = 440.0,
     )
     fun playMelody(
         melody: Melody,
@@ -20,5 +21,6 @@ expect class TonePlayer() {
         onEventPlaying: (measureIndex: Int, eventIndex: Int) -> Unit,
         onFinished: () -> Unit,
         timbre: InstrumentTimbre = InstrumentTimbre.WARM_KEYS,
+        referenceA4Hz: Double = 440.0,
     )
 }

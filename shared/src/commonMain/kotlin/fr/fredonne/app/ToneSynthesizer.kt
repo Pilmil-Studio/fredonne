@@ -34,7 +34,8 @@ data class MelodyEventTiming(
 object ToneSynthesizer {
     const val SAMPLE_RATE = 44_100
 
-    fun midiToFreq(midi: Int): Double = 440.0 * 2.0.pow((midi - 69) / 12.0)
+    fun midiToFreq(midi: Int, referenceA4Hz: Double = 440.0): Double =
+        referenceA4Hz * 2.0.pow((midi - 69) / 12.0)
 
     fun timbreForInstrument(instrument: Instrument?): InstrumentTimbre = when (instrument?.id) {
         "flute" -> InstrumentTimbre.FLUTE
@@ -338,6 +339,7 @@ object ToneSynthesizer {
         melody: Melody,
         bpm: Int,
         timbre: InstrumentTimbre = InstrumentTimbre.WARM_KEYS,
+        referenceA4Hz: Double = 440.0,
     ): Pair<ShortArray, List<MelodyEventTiming>> {
         val wholeMs = (4.0 * 60_000.0) / bpm.coerceAtLeast(30)
         val timings = mutableListOf<MelodyEventTiming>()
@@ -356,7 +358,7 @@ object ToneSynthesizer {
 
                 val generated = when (event) {
                     is Note -> synthesizeNoteFloat(
-                        freqHz = midiToFreq(event.pitch.midi),
+                        freqHz = midiToFreq(event.pitch.midi, referenceA4Hz),
                         durationMs = eventMs,
                         tailMs = releaseTailMs,
                         timbre = timbre,
