@@ -20,4 +20,4 @@ jobs:
         with:
           gradle-version: "8.11.1"
       - name: Tests du moteur musical, de l'application et lint
-        run: gradle :core:music:test :app:testDebugUnitTest :app:lintDebug --console=plain
+        run: gradle :core:music:jvmTest :app:testDebugUnitTest :app:lintDebug --console=plain
