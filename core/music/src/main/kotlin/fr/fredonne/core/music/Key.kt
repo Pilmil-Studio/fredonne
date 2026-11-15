@@ -47,8 +47,8 @@ data class Key(val tonicStep: Step, val tonicAlter: Int, val mode: Mode) {
             val majorFifths = if (mode == Mode.MINOR) fifths + 3 else fifths
             val position = majorFifths + 1
             return Key(
-                tonicStep = FIFTHS_LINE[Math.floorMod(position, 7)],
-                tonicAlter = Math.floorDiv(position, 7),
+                tonicStep = FIFTHS_LINE[position.mod(7)],
+                tonicAlter = position.floorDiv(7),
                 mode = mode,
             )
         }
@@ -67,7 +67,7 @@ data class Key(val tonicStep: Step, val tonicAlter: Int, val mode: Mode) {
             val b = Pitch(targetStep, 4, targetAlter)
             val rawSteps = b.diatonic - a.diatonic
             val rawSemitones = b.midi - a.midi
-            val steps = Math.floorMod(rawSteps, 7)
+            val steps = rawSteps.mod(7)
             val octaves = (steps - rawSteps) / 7
             val semitones = rawSemitones + 12 * octaves
             val up = Interval(steps, semitones)

@@ -182,7 +182,7 @@ class AudioMelodyTranscriber(
         /** Orthographie une hauteur MIDI selon l'armure [key] (bémols vs dièses). */
         fun spellMidi(midi: Int, key: Key): Pitch {
             val octave = (midi / 12) - 1
-            val pc = Math.floorMod(midi, 12)
+            val pc = midi.mod(12)
             val preferFlats = key.fifths < 0
             return when (pc) {
                 0 -> Pitch(Step.C, octave, 0)

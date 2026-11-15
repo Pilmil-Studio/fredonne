@@ -24,6 +24,6 @@ data class Pitch(val step: Step, val octave: Int, val alter: Int = 0) {
     companion object {
         /** Note naturelle correspondant à une position diatonique. */
         fun natural(diatonic: Int): Pitch =
-            Pitch(Step.entries[Math.floorMod(diatonic, 7)], Math.floorDiv(diatonic, 7))
+            Pitch(Step.entries[diatonic.mod(7)], diatonic.floorDiv(7))
     }
 }

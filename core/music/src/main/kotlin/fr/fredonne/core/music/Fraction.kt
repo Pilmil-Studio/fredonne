@@ -13,11 +13,11 @@ class Fraction private constructor(val numerator: Long, val denominator: Long) :
     val isZero: Boolean get() = numerator == 0L
 
     operator fun plus(other: Fraction): Fraction = of(
-        Math.addExact(
-            Math.multiplyExact(numerator, other.denominator),
-            Math.multiplyExact(other.numerator, denominator),
+        addExact(
+            multiplyExact(numerator, other.denominator),
+            multiplyExact(other.numerator, denominator),
         ),
-        Math.multiplyExact(denominator, other.denominator),
+        multiplyExact(denominator, other.denominator),
     )
 
     operator fun minus(other: Fraction): Fraction = this + (-other)
@@ -25,8 +25,8 @@ class Fraction private constructor(val numerator: Long, val denominator: Long) :
     operator fun unaryMinus(): Fraction = Fraction(-numerator, denominator)
 
     operator fun times(other: Fraction): Fraction = of(
-        Math.multiplyExact(numerator, other.numerator),
-        Math.multiplyExact(denominator, other.denominator),
+        multiplyExact(numerator, other.numerator),
+        multiplyExact(denominator, other.denominator),
     )
 
     operator fun times(factor: Int): Fraction = this * of(factor)
@@ -34,14 +34,14 @@ class Fraction private constructor(val numerator: Long, val denominator: Long) :
     operator fun div(other: Fraction): Fraction {
         require(other.numerator != 0L) { "Division par zéro" }
         return of(
-            Math.multiplyExact(numerator, other.denominator),
-            Math.multiplyExact(denominator, other.numerator),
+            multiplyExact(numerator, other.denominator),
+            multiplyExact(denominator, other.numerator),
         )
     }
 
     override fun compareTo(other: Fraction): Int =
-        Math.multiplyExact(numerator, other.denominator)
-            .compareTo(Math.multiplyExact(other.numerator, denominator))
+        multiplyExact(numerator, other.denominator)
+            .compareTo(multiplyExact(other.numerator, denominator))
 
     override fun equals(other: Any?): Boolean =
         other is Fraction && numerator == other.numerator && denominator == other.denominator
@@ -80,6 +80,24 @@ class Fraction private constructor(val numerator: Long, val denominator: Long) :
                 y = t
             }
             return x
+        }
+
+        private fun addExact(x: Long, y: Long): Long {
+            val r = x + y
+            if (((x xor r) and (y xor r)) < 0L) throw IllegalStateException("long overflow")
+            return r
+        }
+
+        private fun multiplyExact(x: Long, y: Long): Long {
+            val r = x * y
+            val ax = abs(x)
+            val ay = abs(y)
+            if ((ax or ay) ushr 31 != 0L) {
+                if ((y != 0L && r / y != x) || (x == Long.MIN_VALUE && y == -1L)) {
+                    throw IllegalStateException("long overflow")
+                }
+            }
+            return r
         }
     }
 }
