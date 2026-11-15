@@ -1,19 +1,21 @@
 package fr.fredonne.core.music
 
 /**
- * Encodeur QR Code ISO/IEC 18004 autonome en Kotlin pur multiplateforme (Versions 1 à 10,
- * mode Octet / Byte, correction d'erreur Reed-Solomon sur GF(2^8) niveau L).
+ * Encodeur QR Code ISO/IEC 18004 autonome en Kotlin pur multiplateforme (Versions 1 à 16,
+ * mode Octet / Byte, correction d'erreur Reed-Solomon sur GF(2^8) niveau L, jusqu'à 586 octets).
  *
  * Aucune dépendance externe (pas de ZXing) : fonctionne à l'identique sur Android, iOS et JVM
  * pour le tracé vectoriel dans le PDF ([ScorePdfGenerator]) et sur le Canvas Compose.
  */
 object QrCodeEncoder {
 
+    const val MAX_CAPACITY_BYTES = 586
+
     data class QrMatrix(val size: Int, val modules: Array<BooleanArray>) {
         operator fun get(x: Int, y: Int): Boolean = modules[y][x]
     }
 
-    // Table des versions 1 à 10 (niveau L) : (totalCodewords, ecCodewordsPerBlock, numBlocksGroup1, dataCwGroup1, numBlocksGroup2, dataCwGroup2)
+    // Table des versions 1 à 16 (niveau L) : (totalCodewords, ecCodewordsPerBlock, numBlocksGroup1, dataCwGroup1, numBlocksGroup2, dataCwGroup2)
     private data class VersionSpec(
         val version: Int,
         val totalDataCodewords: Int,
@@ -36,13 +38,27 @@ object QrCodeEncoder {
         VersionSpec(8, 194, 24, 2, 97, 0, 0, intArrayOf(6, 24, 42)),
         VersionSpec(9, 232, 30, 2, 116, 0, 0, intArrayOf(6, 26, 46)),
         VersionSpec(10, 274, 18, 2, 68, 2, 69, intArrayOf(6, 28, 50)),
+        VersionSpec(11, 324, 20, 4, 81, 0, 0, intArrayOf(6, 30, 54)),
+        VersionSpec(12, 370, 24, 2, 92, 2, 93, intArrayOf(6, 32, 58)),
+        VersionSpec(13, 428, 26, 4, 107, 0, 0, intArrayOf(6, 34, 62)),
+        VersionSpec(14, 461, 30, 3, 115, 1, 116, intArrayOf(6, 26, 46, 66)),
+        VersionSpec(15, 523, 22, 5, 87, 1, 88, intArrayOf(6, 26, 48, 70)),
+        VersionSpec(16, 589, 24, 5, 98, 1, 99, intArrayOf(6, 26, 50, 74)),
     )
+
+    fun encodeOrNull(text: String): QrMatrix? {
+        val rawBytes = text.encodeToByteArray()
+        if (rawBytes.size > MAX_CAPACITY_BYTES) return null
+        return encodeBytes(rawBytes)
+    }
 
     fun encode(text: String): QrMatrix {
         val rawBytes = text.encodeToByteArray()
-        // Si la chaîne dépasse la capacité de la version 10 (271 octets), on tronque proprement à la dernière mesure
-        val payload = if (rawBytes.size <= 271) rawBytes else rawBytes.copyOfRange(0, 271)
+        val payload = if (rawBytes.size <= MAX_CAPACITY_BYTES) rawBytes else rawBytes.copyOfRange(0, MAX_CAPACITY_BYTES)
+        return encodeBytes(payload)
+    }
 
+    private fun encodeBytes(payload: ByteArray): QrMatrix {
         val spec = VERSION_SPECS.first { v ->
             val headerBits = if (v.version <= 9) 4 + 8 else 4 + 16
             (headerBits + payload.size * 8) <= v.totalDataCodewords * 8
