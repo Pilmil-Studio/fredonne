@@ -1,0 +1,34 @@
+Fredonne lets you write down a tune, listen to it and transpose it, with no account, no ads and no internet connection. It is meant for choir singers and band or orchestra players who want to put a melody on a staff, play or sing it, and share it.
+
+WHY FREDONNE
+- Write a single-voice tune: a melody heard at rehearsal, a part to learn, an idea to keep.
+- Listen to it right away, at the speed you want.
+- Transpose it for a B-flat, E-flat or F instrument: the score is shown in the instrument's written key while the sounding notes stay correct.
+- Export it to hand it to someone or open it in notation software.
+
+FEATURES
+- Single-voice melody editor: notes, rests, accidentals, dotted notes, key, time signature, tempo, lyrics under the notes and breath marks.
+- Undo and redo (50 steps).
+- Automatic saving: the score you are working on is restored when you reopen the app, even after a screen rotation or if the system closed it.
+- Playback at the chosen tempo; loop over a few bars and adjustable playback speed to practise a passage.
+- Transposition by semitones or to a target key, with 20 instruments (flute, oboe, clarinet, saxophones, trumpet, horn, trombone, violin, harps, guitar, bass, double bass, four voices) and each instrument's range.
+- Checks: bars that are too short or too long, notes outside the instrument's range.
+- Metronome and tap tempo.
+- Chromatic tuner with adjustable reference pitch (440 or 442 Hz).
+- Hum to write: sing and the app suggests the matching notes on the staff.
+- ABC notation: export, and reload a score written in ABC.
+- Sharing QR Code: a short melody can be passed on by QR Code, shown on screen or printed on the PDF score, and read with the camera.
+- Exports: MusicXML, MIDI, PDF and ABC.
+- Import by pasting text (MusicXML, ABC or Fredonne code).
+
+The app interface is currently available in French only.
+
+PRIVACY
+- No internet permission: nothing leaves your phone and the app cannot send anything.
+- The microphone is used only for the tuner and for humming a melody. Sound is analysed on the phone and is not recorded.
+- The camera is used only to read a score QR Code. The image is analysed on the phone and is not recorded.
+- You can refuse the microphone and the camera: the rest of the app works without them.
+- No account, no ads, no analytics.
+- An export goes only where you send it, through Android's own picker.
+
+Free software (MPL-2.0 licence), published by Pilmil Studio. Source code: https://github.com/Pilmil-Studio/fredonne

@@ -1,0 +1,34 @@
+Fredonne sert à noter un thème, à l'écouter et à le transposer, sans compte, sans publicité et sans connexion. Il s'adresse aux choristes et aux musiciens d'harmonie ou d'orchestre qui veulent mettre une mélodie sur une portée, la jouer ou la chanter, puis la partager.
+
+POURQUOI FREDONNE
+- Notez un thème à une voix : un air entendu en répétition, une partie à apprendre, une idée à garder.
+- Écoutez-le tout de suite, à la vitesse que vous voulez.
+- Transposez-le pour un instrument en si bémol, en mi bémol ou en fa : la partition s'affiche dans la tonalité écrite de l'instrument et les notes jouées restent les bonnes.
+- Exportez-le pour le donner à quelqu'un ou l'ouvrir dans un logiciel de notation.
+
+FONCTIONS
+- Éditeur de mélodie à une voix : notes, silences, altérations, notes pointées, tonalité, chiffrage de mesure, tempo, paroles sous les notes et repères de respiration.
+- Annuler et rétablir (50 étapes).
+- Enregistrement automatique : la partition en cours est reprise à la réouverture de l'appli, même après une rotation de l'écran ou une fermeture par le système.
+- Écoute avec le tempo choisi ; boucle sur quelques mesures et vitesse de lecture réglable pour travailler un passage.
+- Transposition en demi-tons ou vers une tonalité, avec 20 instruments (flûte, hautbois, clarinette, saxophones, trompette, cor, trombone, violon, harpes, guitare, basse, contrebasse, quatre voix) et l'indication de la tessiture de chacun.
+- Vérifications : mesures trop courtes ou trop longues, notes hors de la tessiture de l'instrument.
+- Métronome et tap tempo.
+- Accordeur chromatique avec diapason réglable (440 ou 442 Hz).
+- Saisie en fredonnant : chantez, l'appli propose les notes correspondantes sur la portée.
+- Notation ABC : export et reprise d'une partition écrite en ABC.
+- QR Code de partage : une courte mélodie se transmet par QR Code, affiché à l'écran ou imprimé sur la partition PDF, et se lit avec l'appareil photo.
+- Exports : MusicXML, MIDI, PDF et ABC.
+- Import par collage de texte (MusicXML, ABC ou code Fredonne).
+
+L'interface est en français.
+
+CONFIDENTIALITÉ
+- Aucune permission Internet : rien ne quitte votre téléphone et l'appli ne peut rien envoyer.
+- Le micro n'est utilisé que pour l'accordeur et la saisie en fredonnant. Le son est analysé sur le téléphone et n'est pas enregistré.
+- L'appareil photo n'est utilisé que pour lire un QR Code de partition. L'image est analysée sur le téléphone et n'est pas enregistrée.
+- Vous pouvez refuser le micro et l'appareil photo : le reste de l'appli fonctionne sans.
+- Ni compte, ni publicité, ni outil de mesure d'audience.
+- Une exportation ne part que là où vous l'envoyez, via le sélecteur d'Android.
+
+Logiciel libre (licence MPL-2.0), édité par Pilmil Studio. Code source : https://github.com/Pilmil-Studio/fredonne

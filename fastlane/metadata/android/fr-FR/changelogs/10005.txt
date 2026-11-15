@@ -1,0 +1,5 @@
+- Enregistrement automatique de la partition en cours, reprise à la réouverture.
+- Accordeur chromatique, métronome, boucle de travail et vitesse de lecture.
+- Saisie d'une mélodie en fredonnant.
+- Export et reprise en notation ABC ; partage par QR Code lu avec l'appareil photo.
+- Permissions : micro et appareil photo, demandés seulement pour ces fonctions. Toujours aucun accès Internet.
