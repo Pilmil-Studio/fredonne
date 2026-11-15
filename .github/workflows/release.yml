@@ -29,6 +29,9 @@ jobs:
         with:
           submodules: true
 
+      - name: Vérifier le wrapper Gradle
+        uses: gradle/actions/wrapper-validation@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -51,7 +54,7 @@ jobs:
           bash scripts/version-from-tag.sh "$tag" | tee -a "$GITHUB_ENV"
 
       - name: Tests unitaires
-        run: gradle :core:music:jvmTest :app:testReleaseUnitTest --no-daemon
+        run: ./gradlew :core:music:jvmTest :app:testReleaseUnitTest --no-daemon
 
       - name: Restaurer la clé d'envoi (si configurée)
         id: sign
@@ -75,7 +78,7 @@ jobs:
           FREDONNE_VERSION_CODE: ${{ env.VERSION_CODE }}
           FREDONNE_VERSION_NAME: ${{ env.VERSION_NAME }}
         run: |
-          gradle assembleRelease bundleRelease --no-daemon
+          ./gradlew assembleRelease bundleRelease --no-daemon
           apk=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
           aab=$(find app/build/outputs/bundle/release -name "*.aab" | head -n 1)
           cp "$apk" "Fredonne-$VERSION_NAME.apk"
