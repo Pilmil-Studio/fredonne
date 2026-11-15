@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 class FormatsCodecEdgeTest {
 
     @Test
-    fun `MusicXmlCodec ignore chord et grace, resout transpose sans instrument-name et gere clef-octave-change`() {
+    fun `MusicXmlCodec ignore chord et grace resout transpose sans instrument-name et gere clef-octave-change`() {
         val externalXml = """
             <?xml version="1.0" encoding="UTF-8"?>
             <score-partwise version="4.0">
@@ -77,7 +77,7 @@ class FormatsCodecEdgeTest {
     }
 
     @Test
-    fun `MidiCodec rejette en-tete invalide et gere running status, NoteOn vel 0, silences et tonalite implicite`() {
+    fun `MidiCodec rejette en-tete invalide et gere running status NoteOn vel 0 silences et tonalite implicite`() {
         assertFailsWith<IllegalArgumentException> { MidiCodec.import(byteArrayOf(1, 2, 3)) }
         assertFailsWith<IllegalArgumentException> { MidiCodec.import("BAD_HEADER_12345".encodeToByteArray()) }
 
@@ -122,7 +122,7 @@ class FormatsCodecEdgeTest {
     }
 
     @Test
-    fun `ShareCodec valide les erreurs et preserve alterations doubles, points, tuplets et mode mineur`() {
+    fun `ShareCodec valide les erreurs et preserve alterations doubles points tuplets et mode mineur`() {
         assertFailsWith<IllegalArgumentException> { ShareCodec.decode("INVALID|C0:M:4/4:96:-|") }
         assertFailsWith<IllegalArgumentException> { ShareCodec.decode("FR1|no_pipe") }
         assertFailsWith<IllegalArgumentException> { ShareCodec.decode("FR1|C0:M:4/4|") }
@@ -174,7 +174,7 @@ class FormatsCodecEdgeTest {
     }
 
     @Test
-    fun `ScorePdfGenerator gere multi-systemes, harpe a pedales, melodie vide et echappement PDF`() {
+    fun `ScorePdfGenerator gere multi-systemes harpe a pedales melodie vide et echappement PDF`() {
         val q = Durations.QUARTER
         val manyMeasures = List(10) {
             Measure(listOf(Note(Pitch(Step.C, 4), q), Note(Pitch(Step.D, 4), q), Note(Pitch(Step.E, 4), q), Note(Pitch(Step.F, 4), q)))

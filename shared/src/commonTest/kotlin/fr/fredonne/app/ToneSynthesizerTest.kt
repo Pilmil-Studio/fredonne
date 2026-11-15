@@ -53,7 +53,7 @@ class ToneSynthesizerTest {
     }
 
     @Test
-    fun `synthesizeNoteFloat et toPcm16 gerent duree nulle, duree positive et saturation douce`() {
+    fun `synthesizeNoteFloat et toPcm16 gerent duree nulle duree positive et saturation douce`() {
         val empty = ToneSynthesizer.synthesizeNoteFloat(440.0, durationMs = 0, tailMs = 0)
         assertEquals(0, empty.size)
 

@@ -66,7 +66,7 @@ class AudioMelodyTranscriberTest {
     }
 
     @Test
-    fun `detector rejette trame trop courte, silence et bruit aperiodique`() {
+    fun `detector rejette trame trop courte silence et bruit aperiodique`() {
         val detector = AudioPitchDetector(sampleRate = 16_000)
 
         val shortFrame = detector.estimate(FloatArray(32) { 0.5f })
@@ -88,7 +88,7 @@ class AudioMelodyTranscriberTest {
     }
 
     @Test
-    fun `transcribeEstimates gere liste vide, micro-artefacts et lissage median d un saut d octave`() {
+    fun `transcribeEstimates gere liste vide micro-artefacts et lissage median d un saut d octave`() {
         val transcriber = AudioMelodyTranscriber()
 
         val empty = transcriber.transcribeEstimates(emptyList())

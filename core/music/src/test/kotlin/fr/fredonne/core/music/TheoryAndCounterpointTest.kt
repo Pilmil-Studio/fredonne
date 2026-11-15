@@ -100,7 +100,7 @@ class TheoryAndCounterpointTest {
     }
 
     @Test
-    fun `checkTwoVoices detecte quintes paralleles, octaves paralleles et croisement de voix`() {
+    fun `checkTwoVoices detecte quintes paralleles octaves paralleles et croisement de voix`() {
         val cMajor = Key(Step.C, 0, Mode.MAJOR)
         // Mesure : (Do4, Sol4) -> (Ré4, La4) [quintes parallèles] -> (Mi4, Mi5) -> (Fa4, Fa5) [octaves parallèles]
         val upper = Melody(

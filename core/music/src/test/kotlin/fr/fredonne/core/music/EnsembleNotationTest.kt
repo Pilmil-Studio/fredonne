@@ -62,7 +62,7 @@ class EnsembleNotationTest {
     }
 
     @Test
-    fun `MusicXmlCodec export et import conservent lyric avec caracteres speciaux, breathMark et cles Ut`() {
+    fun `MusicXmlCodec export et import conservent lyric avec caracteres speciaux breathMark et cles Ut`() {
         val original = Melody(
             key = Key(Step.C, 0, Mode.MAJOR),
             time = TimeSignature(4, 4),
@@ -100,7 +100,7 @@ class EnsembleNotationTest {
     }
 
     @Test
-    fun `ScorePdfGenerator produit un PDF valide avec cles ALTO et TENOR, paroles et respiration`() {
+    fun `ScorePdfGenerator produit un PDF valide avec cles ALTO et TENOR paroles et respiration`() {
         val melody = Melody(
             key = Key(Step.F, 0, Mode.MAJOR),
             time = TimeSignature(4, 4),

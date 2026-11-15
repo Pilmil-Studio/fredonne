@@ -10,7 +10,7 @@ class FormatsCodecTest {
     private val e = Durations.EIGHTH
 
     @Test
-    fun `MusicXML export et import conservent la melodie, les tuplets et l instrument transpositeur`() {
+    fun `MusicXML export et import conservent la melodie les tuplets et l instrument transpositeur`() {
         val triplet = Tuplet(3, 2)
         val original = Melody(
             key = Key(Step.F, 0, Mode.MAJOR),
@@ -43,7 +43,7 @@ class FormatsCodecTest {
     }
 
     @Test
-    fun `MIDI SMF export et import reconstruisent les hauteurs, durées, armure et tempo`() {
+    fun `MIDI SMF export et import reconstruisent les hauteurs durées armure et tempo`() {
         val original = Melody(
             key = Key(Step.G, 0, Mode.MAJOR),
             time = TimeSignature(4, 4),
