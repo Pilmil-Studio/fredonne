@@ -20,15 +20,15 @@ L'application s'ouvre directement sur l'éditeur de partition (sans barre d'ongl
 ### Barre supérieure (`TopAppBar`)
 - **Lecture / Arrêt** : écoute immédiate de la mélodie synthétisée localement.
 - **Annuler / Rétablir** : historique jusqu'à **50 états**.
-- **À propos** (`AboutDialog`) : informations sur l'application et sa licence.
+- **Menu `⋮`** : accès à **Réglages & Micro** (activation du microphone et diapason 440/442 Hz), **Charger l'exemple (*Frère Jacques*)**, **Effacer la portée** (avec confirmation) et **À propos**.
 
 ### Ruban d'actions rapides
 - **Tonalité** (`KeyAndTransposeDialog`) : changement de tonalité, transposition chromatique ou diatonique, et **estimation automatique de la tonalité** (algorithme de Krumhansl-Schmuckler).
 - **Instrument** (`InstrumentDialog`) : sélection parmi **20 instruments** (y compris instruments transpositeurs en Si♭, Mi♭, Fa).
 - **MusicXML · MIDI · PDF** (`FormatsDialog`) : import/export aux formats standards et génération d'un **QR Code vectoriel** (`FR1|...`) pour partager une courte mélodie hors-ligne.
 - **Répéter** (`RehearsalDialog`) : outil de travail avec métronome, *tap tempo*, boucle **A-B**, vitesse de lecture réglable (**0,5x à 1,0x**) et diapason (**440 Hz ou 442 Hz**).
+- **Accordeur** & **Fredonner** *(visibles uniquement si le microphone est autorisé)* : accordeur chromatique en temps réel et dictée mélodique sur la portée.
 - **Parole · Resp.** (`LyricAndBreathDialog`, contextuel) : ajout de paroles sous les notes ou de repères de respiration.
-- **Exemple** / **Effacer** : chargement rapide d'un exemple ou remise à zéro de la portée.
 
 ### Portée interactive et saisie (`StaffCanvas`, `VerifierBar`, `DurationToolbar`, `PianoKeyboard`)
 - **Portée interactive (`StaffCanvas`)** : retour à la ligne automatique des systèmes, prise en charge des clés de Sol, Sol octave basse (8vb), Fa, Ut 3 et Ut 4.
