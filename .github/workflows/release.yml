@@ -51,7 +51,7 @@ jobs:
           bash scripts/version-from-tag.sh "$tag" | tee -a "$GITHUB_ENV"
 
       - name: Tests unitaires
-        run: gradle :core:music:test :app:testReleaseUnitTest --no-daemon
+        run: gradle :core:music:jvmTest :app:testReleaseUnitTest --no-daemon
 
       - name: Restaurer la clé d'envoi (si configurée)
         id: sign
