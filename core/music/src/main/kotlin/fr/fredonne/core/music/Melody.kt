@@ -33,6 +33,8 @@ data class Note(
     val pitch: Pitch,
     override val written: Fraction,
     override val tuplet: Tuplet? = null,
+    val lyric: String? = null,
+    val breathMark: Boolean = false,
 ) : Event
 
 data class Rest(

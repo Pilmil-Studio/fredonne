@@ -19,6 +19,31 @@ object ShareCodec {
         val tempoBpm: Int,
     )
 
+    /**
+     * Décode automatiquement un payload issu d'un QR code ou d'un collage texte :
+     * - Format compact Fredonne `FR1|...`
+     * - Notation standard ABC (`X:1 ... K:...`)
+     * - MusicXML 4.0 (`<score-partwise...`)
+     */
+    fun decodeAny(code: String): SharedScore {
+        val trimmed = code.trim()
+        return when {
+            trimmed.startsWith(PREFIX) -> decode(trimmed)
+            AbcCodec.looksLikeAbc(trimmed) -> AbcCodec.decode(trimmed)
+            trimmed.startsWith("<") && trimmed.contains("<score-partwise") -> {
+                val (melody, inst) = MusicXmlCodec.import(trimmed)
+                SharedScore(
+                    melody = melody,
+                    instrument = inst,
+                    tempoBpm = 96,
+                )
+            }
+            else -> throw IllegalArgumentException(
+                "Format non reconnu (attendu : QR Fredonne FR1|, notation ABC ou MusicXML)",
+            )
+        }
+    }
+
     fun encode(
         melody: Melody,
         instrument: Instrument? = null,
@@ -61,13 +86,14 @@ object ShareCodec {
         require(headerParts.size >= 5) { "En-tête de code Fredonne incomplet" }
 
         val tonicRaw = headerParts[0]
+        require(tonicRaw.isNotEmpty()) { "Tonique manquante dans le code Fredonne" }
         val tonicStep = Step.valueOf(tonicRaw.substring(0, 1))
-        val tonicAlter = tonicRaw.substring(1).toIntOrNull() ?: 0
+        val tonicAlter = (tonicRaw.substring(1).toIntOrNull() ?: 0).coerceIn(-2, 2)
         val mode = if (headerParts[1] == "m") Mode.MINOR else Mode.MAJOR
         val key = Key(tonicStep, tonicAlter, mode)
 
         val timeParts = headerParts[2].split("/")
-        val beats = timeParts.getOrNull(0)?.toIntOrNull()?.coerceAtLeast(1) ?: 4
+        val beats = timeParts.getOrNull(0)?.toIntOrNull()?.coerceIn(1, 32) ?: 4
         val unit = timeParts.getOrNull(1)?.toIntOrNull() ?: 4
         val time = TimeSignature(beats, if (unit in setOf(1, 2, 4, 8, 16, 32, 64)) unit else 4)
 
@@ -76,7 +102,7 @@ object ShareCodec {
         val instrument = if (instId == "-" || instId.isBlank()) null else Instruments.byId(instId)
 
         val body = withoutPrefix.substring(pipeIdx + 1)
-        val measureTokens = if (body.isEmpty()) listOf("") else body.split("/")
+        val measureTokens = (if (body.isEmpty()) listOf("") else body.split("/")).take(500)
         val resolvedMeasures = mutableListOf<Measure>()
 
         for (token in measureTokens) {
@@ -126,8 +152,8 @@ object ShareCodec {
         val mainPart = if (starIdx >= 0) token.substring(0, starIdx) else token
         val tuplet = if (starIdx >= 0) {
             val tupParts = token.substring(starIdx + 1).split(":")
-            val act = tupParts.getOrNull(0)?.toIntOrNull() ?: 3
-            val norm = tupParts.getOrNull(1)?.toIntOrNull() ?: 2
+            val act = (tupParts.getOrNull(0)?.toIntOrNull() ?: 3).coerceIn(1, 16)
+            val norm = (tupParts.getOrNull(1)?.toIntOrNull() ?: 2).coerceIn(1, 16)
             Tuplet(act, norm)
         } else {
             null
@@ -138,6 +164,7 @@ object ShareCodec {
             return Rest(dur, tuplet)
         }
 
+        require(mainPart.isNotEmpty()) { "Événement vide dans le code Fredonne" }
         val step = Step.valueOf(mainPart.substring(0, 1))
         var pos = 1
         var alter = 0
@@ -145,10 +172,11 @@ object ShareCodec {
             alter += if (mainPart[pos] == '#') 1 else -1
             pos++
         }
+        alter = alter.coerceIn(-2, 2)
         val octStart = pos
         if (pos < mainPart.length && mainPart[pos] == '-') pos++
         while (pos < mainPart.length && mainPart[pos].isDigit()) pos++
-        val octave = mainPart.substring(octStart, pos).toIntOrNull() ?: 4
+        val octave = (mainPart.substring(octStart, pos).toIntOrNull() ?: 4).coerceIn(0, 9)
         val durStr = mainPart.substring(pos)
         val written = decodeDuration(durStr)
         return Note(Pitch(step, octave, alter), written, tuplet)
@@ -183,8 +211,8 @@ object ShareCodec {
         "t" -> Durations.THIRTY_SECOND
         else -> {
             val parts = code.split("_")
-            val n = parts.getOrNull(0)?.toLongOrNull() ?: 1L
-            val d = parts.getOrNull(1)?.toLongOrNull() ?: 4L
+            val n = (parts.getOrNull(0)?.toLongOrNull() ?: 1L).coerceIn(1L, 64L)
+            val d = (parts.getOrNull(1)?.toLongOrNull() ?: 4L).coerceIn(1L, 64L)
             Fraction.of(n, d)
         }
     }

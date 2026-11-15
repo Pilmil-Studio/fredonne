@@ -124,6 +124,18 @@ object MusicXmlCodec {
                     sb.appendLine("""          <normal-notes>${tuplet.normal}</normal-notes>""")
                     sb.appendLine("""        </time-modification>""")
                 }
+                if (event is Note && event.breathMark) {
+                    sb.appendLine("""        <notations>""")
+                    sb.appendLine("""          <articulations>""")
+                    sb.appendLine("""            <breath-mark/>""")
+                    sb.appendLine("""          </articulations>""")
+                    sb.appendLine("""        </notations>""")
+                }
+                if (event is Note && !event.lyric.isNullOrBlank()) {
+                    sb.appendLine("""        <lyric number="1">""")
+                    sb.appendLine("""          <text>${escapeXml(event.lyric)}</text>""")
+                    sb.appendLine("""        </lyric>""")
+                }
                 sb.appendLine("""      </note>""")
             }
 
@@ -235,7 +247,17 @@ object MusicXmlCodec {
                         .find(nContent)?.groupValues?.get(1)?.toIntOrNull() ?: 4
                     val alter = Regex("""<alter>\s*(-?\d+)\s*</alter>""")
                         .find(nContent)?.groupValues?.get(1)?.toIntOrNull() ?: 0
-                    events += Note(Pitch(step, octave, alter), writtenFraction, tuplet)
+                    val lyricRaw = Regex("""<lyric\b[^>]*>[\s\S]*?<text\b[^>]*>([\s\S]*?)</text>[\s\S]*?</lyric>""")
+                        .find(nContent)?.groupValues?.get(1)
+                    val lyric = lyricRaw?.let { unescapeXml(it) }?.takeIf { it.isNotBlank() }
+                    val breathMark = Regex("""<breath-mark\b""").containsMatchIn(nContent)
+                    events += Note(
+                        pitch = Pitch(step, octave, alter),
+                        written = writtenFraction,
+                        tuplet = tuplet,
+                        lyric = lyric,
+                        breathMark = breathMark,
+                    )
                 }
             }
             parsedMeasures += Measure(events)
@@ -336,4 +358,11 @@ object MusicXmlCodec {
         .replace(">", "&gt;")
         .replace("\"", "&quot;")
         .replace("'", "&apos;")
+
+    private fun unescapeXml(s: String): String = s
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&apos;", "'")
+        .replace("&amp;", "&")
 }

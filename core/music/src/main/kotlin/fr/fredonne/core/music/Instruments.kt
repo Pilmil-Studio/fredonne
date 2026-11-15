@@ -5,6 +5,8 @@ package fr.fredonne.core.music
  * - [TREBLE] : Clé de Sol 2e ligne (ligne du bas = Mi4).
  * - [TREBLE_8VB] : Clé de Sol octaviée à l'octave inférieure `G8vb` (ligne du bas = Mi3, pupitre Ténor).
  * - [BASS] : Clé de Fa 4e ligne (ligne du bas = Sol2, Basse, Contrebasse, Trombone, Voix Basse, Harpe main gauche).
+ * - [ALTO] : Clé d'Ut 3e ligne (ligne centrale = Do4, ligne du bas = Fa3, Alto).
+ * - [TENOR] : Clé d'Ut 4e ligne (4e ligne = Do4, ligne du bas = Ré3, Violoncelle, Basson, Trombone ténor).
  */
 enum class Clef(
     val sign: String,
@@ -15,7 +17,9 @@ enum class Clef(
 ) {
     TREBLE("G", 2, 0, Pitch(Step.E, 4), "G"),
     TREBLE_8VB("G", 2, -1, Pitch(Step.E, 3), "G8"),
-    BASS("F", 4, 0, Pitch(Step.G, 2), "F:");
+    BASS("F", 4, 0, Pitch(Step.G, 2), "F:"),
+    ALTO("C", 3, 0, Pitch(Step.F, 3), "C3"),
+    TENOR("C", 4, 0, Pitch(Step.D, 3), "C4");
 
     companion object {
         /**

@@ -162,4 +162,47 @@ class TheoryAndCounterpointTest {
         val crossIssues = Verifier.checkTwoVoices(crossedUpper, crossedLower)
         assertTrue(crossIssues.any { it is VoiceCrossing })
     }
+
+    @Test
+    fun `detectKey sur melodie vide ou sans notes conserve la tonalite initiale`() {
+        val fMinor = Key(Step.F, 0, Mode.MINOR)
+        val empty = Melody(fMinor, TimeSignature(4, 4), listOf(Measure(listOf(Rest(Durations.WHOLE)))))
+        assertEquals(fMinor, MusicTheory.detectKey(empty))
+    }
+
+    @Test
+    fun `spellPitch gere la sensible mineure et la resolution chromatique ascendante ou descendante`() {
+        // En La mineur, Sol# (MIDI 68) est la sensible
+        val aMinor = Key(Step.A, 0, Mode.MINOR)
+        assertEquals(Pitch(Step.G, 4, 1), MusicTheory.spellPitch(68, aMinor))
+
+        // En Do majeur : note chromatique MIDI 66 (Fa# / Solb) selon résolution ascendante -> Fa#, descendante -> Solb
+        val cMajor = Key(Step.C, 0, Mode.MAJOR)
+        assertEquals(Pitch(Step.F, 4, 1), MusicTheory.spellPitch(66, cMajor, nextMidi = 67))
+        assertEquals(Pitch(Step.G, 4, -1), MusicTheory.spellPitch(66, cMajor, nextMidi = 65))
+    }
+
+    @Test
+    fun `checkTwoVoices signale la rugosite sensorielle et autorise le mouvement contraire`() {
+        val cMajor = Key(Step.C, 0, Mode.MAJOR)
+        val fourFour = TimeSignature(4, 4)
+        val h = Durations.HALF
+        val q = Durations.QUARTER
+
+        // Seconde mineure simultanée (Do4 + Réb4) -> HighRoughnessInterval, contrairement à la quinte (Do4 + Sol4)
+        val upperRough = Melody(cMajor, fourFour, listOf(Measure(listOf(Note(Pitch(Step.D, 4, -1), Durations.WHOLE)))))
+        val lowerRough = Melody(cMajor, fourFour, listOf(Measure(listOf(Note(Pitch(Step.C, 4), Durations.WHOLE)))))
+        val roughIssues = Verifier.checkTwoVoices(upperRough, lowerRough, roughnessThreshold = 0.20)
+        assertTrue(roughIssues.any { it is HighRoughnessInterval })
+
+        val upperFifth = Melody(cMajor, fourFour, listOf(Measure(listOf(Note(Pitch(Step.G, 4), Durations.WHOLE)))))
+        val fifthIssues = Verifier.checkTwoVoices(upperFifth, lowerRough, roughnessThreshold = 0.20)
+        assertTrue(fifthIssues.none { it is HighRoughnessInterval })
+
+        // Mouvement contraire (G4->C5 et C4->C3) : quinte -> octave en mouvement contraire, pas parallèle
+        val upperContrary = Melody(cMajor, fourFour, listOf(Measure(listOf(Note(Pitch(Step.G, 4), h), Note(Pitch(Step.C, 5), q), Note(Pitch(Step.C, 5), q)))))
+        val lowerContrary = Melody(cMajor, fourFour, listOf(Measure(listOf(Note(Pitch(Step.C, 4), q), Note(Pitch(Step.D, 4), q), Note(Pitch(Step.C, 3), h)))))
+        val contraryIssues = Verifier.checkTwoVoices(upperContrary, lowerContrary)
+        assertTrue(contraryIssues.none { it is ParallelFifths || it is ParallelOctaves })
+    }
 }

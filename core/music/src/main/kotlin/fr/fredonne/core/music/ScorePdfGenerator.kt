@@ -167,12 +167,19 @@ object ScorePdfGenerator {
             // Barre de début de système renforcée (vert sauge sombre)
             drawLine(content, MARGIN_X, systemTopY + 1f, MARGIN_X, bottomLineY - 1f, 1.8f, 0.157f, 0.365f, 0.302f)
 
-            // Clé (Sol, Sol 8vb ou Fa) en Times-Bold + armure + chiffrage
+            // Clé (Sol, Sol 8vb, Fa, Ut 3e ou Ut 4e) en Times-Bold + armure + chiffrage
+            val (clefY, clefSize) = when (clef) {
+                Clef.TREBLE -> (bottomLineY + lineSpacing * 0.75f) to 22f
+                Clef.TREBLE_8VB -> (bottomLineY + lineSpacing * 0.75f) to 17f
+                Clef.BASS -> (bottomLineY + lineSpacing * 1.35f) to 17f
+                Clef.ALTO -> (bottomLineY + lineSpacing * 1.35f) to 14f
+                Clef.TENOR -> (bottomLineY + lineSpacing * 2.25f) to 14f
+            }
             drawText(
                 sb = content,
-                x = MARGIN_X + 5f,
-                y = bottomLineY + lineSpacing * (if (clef == Clef.BASS) 1.35f else 0.75f),
-                size = if (clef == Clef.TREBLE) 22f else 17f,
+                x = MARGIN_X + 4f,
+                y = clefY,
+                size = clefSize,
                 text = clef.displaySymbol,
                 font = Font.TIMES_BOLD,
                 r = 0.157f,
@@ -334,6 +341,21 @@ object ScorePdfGenerator {
                                 drawOval(content, cx + rx + 4f, cy + 1f, 1.4f, 1.4f, filled = true, r = 0.12f, g = 0.11f, b = 0.10f)
                             }
 
+                            // Repère de respiration (') au-dessus de la ligne supérieure à droite de la note
+                            if (event.breathMark) {
+                                drawText(
+                                    sb = content,
+                                    x = cx + rx + 5f,
+                                    y = systemTopY + 3.5f,
+                                    size = 13f,
+                                    text = "'",
+                                    font = Font.TIMES_BOLD,
+                                    r = 0.157f,
+                                    g = 0.365f,
+                                    b = 0.302f,
+                                )
+                            }
+
                             // Nom de note discret sous la portée (décalé sous la tête si note grave sur ligne supplémentaire)
                             val noteLabel = stepFrench(event.pitch.step) +
                                 (if (event.pitch.alter > 0) "#" else if (event.pitch.alter < 0) "b" else "")
@@ -349,6 +371,23 @@ object ScorePdfGenerator {
                                 g = 0.40f,
                                 b = 0.36f,
                             )
+
+                            // Paroles syllabiques centrées sous la portée
+                            val lyricText = event.lyric?.trim()
+                            if (!lyricText.isNullOrEmpty()) {
+                                val approxWidth = lyricText.length * 4.2f
+                                drawText(
+                                    sb = content,
+                                    x = cx - approxWidth / 2f,
+                                    y = labelY - 11f,
+                                    size = 8.5f,
+                                    text = lyricText,
+                                    font = Font.HELVETICA,
+                                    r = 0.12f,
+                                    g = 0.11f,
+                                    b = 0.10f,
+                                )
+                            }
                         }
                         is Rest -> {
                             val ry = systemTopY - lineSpacing * 1.8f
@@ -372,16 +411,34 @@ object ScorePdfGenerator {
             systemTopY -= 88f
         }
 
-        // 4. Signature éditoriale en pied de page avec mini-logo Fredonne et QR code de reprise hors-ligne
-        val sharePayload = ShareCodec.encode(melody = melody, instrument = instrument, tempoBpm = tempoBpm)
-        val qrMatrix = QrCodeEncoder.encode(sharePayload)
+        // 4. Signature éditoriale en pied de page avec mini-logo Fredonne et QR code(s) ABC de reprise hors-ligne
+        val sharePayload = AbcCodec.encode(
+            melody = melody,
+            instrument = instrument,
+            tempoBpm = tempoBpm,
+            title = title,
+        )
+        val qrChunks = QrChunker.split(sharePayload)
+        val qrMatrices = if (qrChunks.size <= 3) {
+            qrChunks.mapNotNull { chunk -> QrCodeEncoder.encodeOrNull(chunk) }
+        } else {
+            emptyList()
+        }
 
         val footerY = 36f
-        val qrBoxSize = 68f
-        val qrBoxX = PAGE_WIDTH - MARGIN_X - qrBoxSize
+        val hasQr = qrMatrices.isNotEmpty() && qrMatrices.size == qrChunks.size
+        val qrBoxSize = if (qrMatrices.size <= 1) 72f else 58f
+        val qrGap = 8f
+        val totalQrWidth = if (hasQr) {
+            qrMatrices.size * qrBoxSize + (qrMatrices.size - 1) * qrGap
+        } else {
+            0f
+        }
+        val firstQrX = PAGE_WIDTH - MARGIN_X - totalQrWidth
         val qrBoxY = footerY - 2f
+        val lineEndX = if (hasQr) firstQrX - 12f else PAGE_WIDTH - MARGIN_X
 
-        drawLine(content, MARGIN_X, footerY + 34f, qrBoxX - 12f, footerY + 34f, 0.6f, 0.86f, 0.84f, 0.79f)
+        drawLine(content, MARGIN_X, footerY + 34f, lineEndX, footerY + 34f, 0.6f, 0.86f, 0.84f, 0.79f)
         drawFredonneLogo(content, MARGIN_X, footerY + 6f, size = 20f)
         drawText(
             sb = content,
@@ -394,40 +451,62 @@ object ScorePdfGenerator {
             g = 0.365f,
             b = 0.302f,
         )
+        val footerSubtext = when {
+            !hasQr -> "Partition longue : exportez en ABC ou MusicXML pour la réimporter dans Fredonne"
+            qrMatrices.size == 1 -> "Format ouvert ABC (MPL-2.0), sans compte ni Internet  ·  Scannez le QR code à droite pour modifier"
+            else -> "Format ouvert ABC en ${qrMatrices.size} QR codes  ·  Scannez les ${qrMatrices.size} codes dans Fredonne pour modifier"
+        }
         drawText(
             sb = content,
             x = MARGIN_X + 26f,
             y = footerY + 7f,
             size = 7.5f,
-            text = "Application libre (MPL-2.0), sans compte ni Internet  ·  Scannez le QR code à droite pour modifier la partition",
+            text = footerSubtext,
             font = Font.HELVETICA,
             r = 0.45f,
             g = 0.43f,
             b = 0.39f,
         )
 
-        // Encadré du QR code en bas à droite
-        drawRoundedRect(
-            sb = content,
-            x = qrBoxX,
-            y = qrBoxY,
-            w = qrBoxSize,
-            h = qrBoxSize,
-            r = 6f,
-            fillR = 1.0f,
-            fillG = 1.0f,
-            fillB = 1.0f,
-            strokeR = 0.82f,
-            strokeG = 0.80f,
-            strokeB = 0.75f,
-        )
-        drawQrMatrix(
-            sb = content,
-            qr = qrMatrix,
-            x = qrBoxX + 5f,
-            y = qrBoxY + 5f,
-            boxSize = qrBoxSize - 10f,
-        )
+        if (hasQr) {
+            qrMatrices.forEachIndexed { idx, qrMatrix ->
+                val boxX = firstQrX + idx * (qrBoxSize + qrGap)
+                drawRoundedRect(
+                    sb = content,
+                    x = boxX,
+                    y = qrBoxY,
+                    w = qrBoxSize,
+                    h = qrBoxSize,
+                    r = 6f,
+                    fillR = 1.0f,
+                    fillG = 1.0f,
+                    fillB = 1.0f,
+                    strokeR = 0.82f,
+                    strokeG = 0.80f,
+                    strokeB = 0.75f,
+                )
+                drawQrMatrix(
+                    sb = content,
+                    qr = qrMatrix,
+                    x = boxX + 5f,
+                    y = qrBoxY + 5f,
+                    boxSize = qrBoxSize - 10f,
+                )
+                if (qrMatrices.size > 1) {
+                    drawText(
+                        sb = content,
+                        x = boxX + qrBoxSize / 2f - 6f,
+                        y = qrBoxY - 8f,
+                        size = 6.5f,
+                        text = "${idx + 1}/${qrMatrices.size}",
+                        font = Font.HELVETICA_BOLD,
+                        r = 0.45f,
+                        g = 0.43f,
+                        b = 0.39f,
+                    )
+                }
+            }
+        }
 
         return buildSinglePagePdf(content.toString())
     }
@@ -649,7 +728,15 @@ object ScorePdfGenerator {
             .replace("ù", "\\371")
             .replace("î", "\\356")
             .replace("ô", "\\364")
+            .replace("ç", "\\347")
+            .replace("â", "\\342")
+            .replace("û", "\\373")
+            .replace("ü", "\\374")
+            .replace("ë", "\\353")
+            .replace("ï", "\\357")
+            .replace("ö", "\\366")
             .replace("É", "\\311")
+            .replace("’", "'")
             .replace("♭", "b")
             .replace("♯", "#")
             .replace("—", "-")
