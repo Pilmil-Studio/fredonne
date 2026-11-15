@@ -12,6 +12,10 @@ import platform.AVFAudio.setActive
 import platform.Foundation.NSData
 import platform.Foundation.NSTimer
 import platform.Foundation.create
+import platform.darwin.DISPATCH_QUEUE_PRIORITY_DEFAULT
+import platform.darwin.dispatch_async
+import platform.darwin.dispatch_get_global_queue
+import platform.darwin.dispatch_get_main_queue
 
 actual class TonePlayer {
 
@@ -19,10 +23,13 @@ actual class TonePlayer {
     private var melodyPlayer: AVAudioPlayer? = null
     private var progressTimer: NSTimer? = null
     private var playingFlag: Boolean = false
+    private var melodyGeneration: Long = 0L
+    private var singleNoteGeneration: Long = 0L
 
     actual fun isPlaying(): Boolean = playingFlag
 
     actual fun stop() {
+        melodyGeneration++
         playingFlag = false
         progressTimer?.invalidate()
         progressTimer = null
@@ -30,20 +37,32 @@ actual class TonePlayer {
         melodyPlayer = null
     }
 
-    actual fun playSingleNote(midi: Int, durationMs: Int, timbre: InstrumentTimbre) {
-        ensureAudioSession()
-        val samples = ToneSynthesizer.synthesizeTone(
-            freqHz = ToneSynthesizer.midiToFreq(midi),
-            durationMs = durationMs,
-            timbre = timbre,
-        )
-        if (samples.isEmpty()) return
-        val wav = ToneSynthesizer.pcm16ToWav(samples)
-        val data = wav.toNSData() ?: return
-        val player = AVAudioPlayer(data = data, error = null) ?: return
-        singlePlayer = player
-        player.prepareToPlay()
-        player.play()
+    actual fun playSingleNote(
+        midi: Int,
+        durationMs: Int,
+        timbre: InstrumentTimbre,
+        referenceA4Hz: Double,
+    ) {
+        val gen = ++singleNoteGeneration
+        val bgQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT.toLong(), 0u)
+        dispatch_async(bgQueue) {
+            val samples = ToneSynthesizer.synthesizeTone(
+                freqHz = ToneSynthesizer.midiToFreq(midi, referenceA4Hz),
+                durationMs = durationMs,
+                timbre = timbre,
+            )
+            if (samples.isEmpty()) return@dispatch_async
+            val wav = ToneSynthesizer.pcm16ToWav(samples)
+            dispatch_async(dispatch_get_main_queue()) {
+                if (gen != singleNoteGeneration) return@dispatch_async
+                ensureAudioSession()
+                val data = wav.toNSData() ?: return@dispatch_async
+                val player = AVAudioPlayer(data = data, error = null) ?: return@dispatch_async
+                singlePlayer = player
+                player.prepareToPlay()
+                player.play()
+            }
+        }
     }
 
     actual fun playMelody(
@@ -52,54 +71,74 @@ actual class TonePlayer {
         onEventPlaying: (measureIndex: Int, eventIndex: Int) -> Unit,
         onFinished: () -> Unit,
         timbre: InstrumentTimbre,
+        referenceA4Hz: Double,
     ) {
         stop()
-        ensureAudioSession()
-        val (pcm, timings) = ToneSynthesizer.synthesizeMelody(melody, bpm, timbre)
-        if (pcm.isEmpty() || timings.isEmpty()) {
-            onFinished()
-            return
-        }
-        val wav = ToneSynthesizer.pcm16ToWav(pcm)
-        val data = wav.toNSData() ?: run {
-            onFinished()
-            return
-        }
-        val player = AVAudioPlayer(data = data, error = null) ?: run {
-            onFinished()
-            return
-        }
-
+        val gen = ++melodyGeneration
         playingFlag = true
-        melodyPlayer = player
-        player.prepareToPlay()
-        var lastReportedIdx = -1
-        player.play()
+        val bgQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT.toLong(), 0u)
+        dispatch_async(bgQueue) {
+            val (pcm, timings) = ToneSynthesizer.synthesizeMelody(
+                melody = melody,
+                bpm = bpm,
+                timbre = timbre,
+                referenceA4Hz = referenceA4Hz,
+            )
+            val wav = if (pcm.isNotEmpty() && timings.isNotEmpty()) {
+                ToneSynthesizer.pcm16ToWav(pcm)
+            } else {
+                ByteArray(0)
+            }
+            dispatch_async(dispatch_get_main_queue()) {
+                if (gen != melodyGeneration || !playingFlag) return@dispatch_async
+                if (wav.isEmpty() || timings.isEmpty()) {
+                    playingFlag = false
+                    onFinished()
+                    return@dispatch_async
+                }
+                ensureAudioSession()
+                val data = wav.toNSData() ?: run {
+                    playingFlag = false
+                    onFinished()
+                    return@dispatch_async
+                }
+                val player = AVAudioPlayer(data = data, error = null) ?: run {
+                    playingFlag = false
+                    onFinished()
+                    return@dispatch_async
+                }
 
-        progressTimer = NSTimer.scheduledTimerWithTimeInterval(
-            interval = 0.025,
-            repeats = true,
-        ) { timer ->
-            if (!playingFlag) {
-                timer?.invalidate()
-                return@scheduledTimerWithTimeInterval
-            }
-            val currentMs = (player.currentTime * 1000.0).toLong()
-            var activeIdx = 0
-            for (i in timings.indices) {
-                if (timings[i].startMs <= currentMs) activeIdx = i else break
-            }
-            if (activeIdx != lastReportedIdx) {
-                lastReportedIdx = activeIdx
-                val timing = timings[activeIdx]
-                onEventPlaying(timing.measureIndex, timing.eventIndex)
-            }
-            if (!player.isPlaying()) {
-                timer?.invalidate()
-                progressTimer = null
-                melodyPlayer = null
-                playingFlag = false
-                onFinished()
+                melodyPlayer = player
+                player.prepareToPlay()
+                var lastReportedIdx = -1
+                player.play()
+
+                progressTimer = NSTimer.scheduledTimerWithTimeInterval(
+                    interval = 0.025,
+                    repeats = true,
+                ) { timer ->
+                    if (gen != melodyGeneration || !playingFlag) {
+                        timer?.invalidate()
+                        return@scheduledTimerWithTimeInterval
+                    }
+                    val currentMs = (player.currentTime * 1000.0).toLong()
+                    var activeIdx = 0
+                    for (i in timings.indices) {
+                        if (timings[i].startMs <= currentMs) activeIdx = i else break
+                    }
+                    if (activeIdx != lastReportedIdx) {
+                        lastReportedIdx = activeIdx
+                        val timing = timings[activeIdx]
+                        onEventPlaying(timing.measureIndex, timing.eventIndex)
+                    }
+                    if (!player.isPlaying()) {
+                        timer?.invalidate()
+                        progressTimer = null
+                        melodyPlayer = null
+                        playingFlag = false
+                        onFinished()
+                    }
+                }
             }
         }
     }

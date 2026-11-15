@@ -28,4 +28,8 @@ targets:
         basedOnDependencyAnalysis: false
         script: |
           cd "$SRCROOT/.."
-          ./gradlew :shared:embedAndSignAppleFrameworkForXcode
+          if [ -x "./gradlew" ]; then
+            ./gradlew :shared:embedAndSignAppleFrameworkForXcode
+          else
+            ./pilmil-core/gradlew :shared:embedAndSignAppleFrameworkForXcode
+          fi
