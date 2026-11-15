@@ -28,13 +28,16 @@ strong { color: var(--fg); }
   <p>L'application ne déclare aucune permission <code>INTERNET</code> dans son manifeste Android. Vos partitions, réglages et historiques restent strictement sur votre téléphone.</p>
 
   <h2>Micro et appareil photo</h2>
-  <p>Fredonne demande l'accès au micro uniquement si vous utilisez l'accordeur ou la saisie en fredonnant, et l'accès à l'appareil photo uniquement pour lire un QR Code de partition. Le son et l'image sont analysés sur le téléphone, ne sont pas enregistrés et ne peuvent pas être envoyés : l'application n'a pas d'accès réseau. Vous pouvez refuser ces autorisations, le reste de l'application fonctionne sans elles.</p>
+  <p>Le micro sert uniquement à l'accordeur et à la saisie en fredonnant ; son autorisation est proposée, de façon facultative, à la première ouverture et peut être demandée plus tard. L'appareil photo sert uniquement à lire un QR Code de partition et n'est demandé qu'à ce moment-là. Le son et l'image sont analysés en mémoire sur le téléphone : ils ne sont écrits dans aucun fichier et ne peuvent pas être envoyés, car l'application n'a pas d'accès réseau. Vous pouvez refuser ces autorisations, le reste de l'application fonctionne sans elles.</p>
+
+  <h2>Enregistrement automatique</h2>
+  <p>La partition en cours est enregistrée automatiquement dans le stockage privé de l'application, afin de la retrouver à la réouverture. Ce fichier n'est lisible que par l'application et disparaît avec sa désinstallation.</p>
 
   <h2>Aucun compte, aucun traceur</h2>
   <p>Fredonne ne contient ni publicité, ni outil de mesure d'audience, ni bibliothèque d'analyse tierce.</p>
 
   <h2>Export de fichiers</h2>
-  <p>Lorsque vous exportez une partition (MusicXML, MIDI ou PDF), vous choisissez vous-même le dossier ou l'application destinataire via le sélecteur d'Android.</p>
+  <p>Lorsque vous exportez une partition (MusicXML, MIDI, PDF ou ABC), vous choisissez vous-même le dossier ou l'application destinataire via le sélecteur d'Android.</p>
 
   <h2>Contact</h2>
   <p>Pour toute question : <a href="mailto:pilmil.studio@proton.me">pilmil.studio@proton.me</a>.</p>
