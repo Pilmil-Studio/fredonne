@@ -99,7 +99,7 @@ fun PilmilLegalSection(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "Alfortville, France",
+                    text = "France",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -117,7 +117,7 @@ fun PilmilLegalSection(
             fontWeight = FontWeight.SemiBold,
         )
         Text(
-            text = "Éditeur : Pilmil Studio (Alfortville, France).\n" +
+            text = "Éditeur : Pilmil Studio (France).\n" +
                 "Confidentialité : 100 % hors-ligne, aucune permission réseau, aucun traceur, aucun compte. " +
                 "Toutes vos données restent sur votre appareil.\n" +
                 "Licence : logiciel libre sous licence MPL-2.0.\n" +

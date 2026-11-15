@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -242,6 +243,7 @@ fun FredonneApp(
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showConfirmClearDialog by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
+    var readingMode by remember { mutableStateOf(false) }
     var showTunerDialog by remember { mutableStateOf(false) }
     var showHumDialog by remember { mutableStateOf(false) }
     var baseOctave by remember { mutableIntStateOf(4) }
@@ -346,6 +348,13 @@ fun FredonneApp(
                         onDismissRequest = { showOverflowMenu = false },
                     ) {
                         androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(if (readingMode) "Mode édition (clavier)" else "Mode pupitre (lecture plein écran)") },
+                            onClick = {
+                                showOverflowMenu = false
+                                readingMode = !readingMode
+                            },
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
                             text = { Text("Réglages & Micro") },
                             onClick = {
                                 showOverflowMenu = false
@@ -394,6 +403,7 @@ fun FredonneApp(
                 .padding(horizontal = 12.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            if (!readingMode) {
             // Barre de réglages : Tonalité / Transposition, Instrument, Exemple / Vider
             Row(
                 modifier = Modifier
@@ -452,6 +462,22 @@ fun FredonneApp(
                     )
                 }
             }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Mode pupitre · ${state.tempoBpm} BPM",
+                        fontSize = 12.sp,
+                        color = MutedInk,
+                    )
+                    TextButton(onClick = { readingMode = false }) {
+                        Text("Éditer")
+                    }
+                }
+            }
 
             // Portée interactive
             Surface(
@@ -477,9 +503,13 @@ fun FredonneApp(
                 }
             }
 
+            if (!readingMode) {
             // Barre de tempo compacte + déplacement du curseur
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .widthIn(max = 760.dp)
+                    .fillMaxWidth()
+                    .align(Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
@@ -525,28 +555,43 @@ fun FredonneApp(
             }
 
             // Barre de durées + silence + point + mesure
-            DurationToolbar(
-                selectedDuration = state.selectedDuration,
-                dotted = state.dotted,
-                onSelectDuration = { state = state.setDuration(it) },
-                onToggleDotted = { state = state.toggleDotted() },
-                onInsertRest = { state = state.insertRest() },
-                onAddMeasure = { state = state.addMeasure() },
-            )
+            Box(
+                modifier = Modifier
+                    .widthIn(max = 760.dp)
+                    .fillMaxWidth()
+                    .align(Alignment.CenterHorizontally),
+            ) {
+                DurationToolbar(
+                    selectedDuration = state.selectedDuration,
+                    dotted = state.dotted,
+                    onSelectDuration = { state = state.setDuration(it) },
+                    onToggleDotted = { state = state.toggleDotted() },
+                    onInsertRest = { state = state.insertRest() },
+                    onAddMeasure = { state = state.addMeasure() },
+                )
+            }
 
             // Mini clavier piano pour saisie directe avec retour sonore immédiat
-            PianoKeyboard(
-                baseOctave = baseOctave,
-                onShiftOctave = { delta -> baseOctave = (baseOctave + delta).coerceIn(1, 5) },
-                onKeyPressed = { pitch ->
-                    player.playSingleNote(
-                        midi = pitch.midi,
-                        timbre = ToneSynthesizer.timbreForInstrument(state.instrument),
-                        referenceA4Hz = state.tunerReferenceA4Hz,
-                    )
-                    state = state.insertNote(pitch)
-                },
-            )
+            Box(
+                modifier = Modifier
+                    .widthIn(max = 760.dp)
+                    .fillMaxWidth()
+                    .align(Alignment.CenterHorizontally),
+            ) {
+                PianoKeyboard(
+                    baseOctave = baseOctave,
+                    onShiftOctave = { delta -> baseOctave = (baseOctave + delta).coerceIn(1, 5) },
+                    onKeyPressed = { pitch ->
+                        player.playSingleNote(
+                            midi = pitch.midi,
+                            timbre = ToneSynthesizer.timbreForInstrument(state.instrument),
+                            referenceA4Hz = state.tunerReferenceA4Hz,
+                        )
+                        state = state.insertNote(pitch)
+                    },
+                )
+            }
+            }
         }
     }
 
@@ -1693,6 +1738,32 @@ private fun FormatsDialog(
 ) {
     var statusMessage by remember { mutableStateOf<String?>(null) }
     var showQrScanner by remember { mutableStateOf(false) }
+    val importer = rememberScoreImporter(
+        onFileLoaded = { file ->
+            val isMidi = file.fileName.endsWith(".mid", ignoreCase = true) ||
+                file.fileName.endsWith(".midi", ignoreCase = true) ||
+                (file.bytes.size >= 4 &&
+                    file.bytes[0] == 'M'.code.toByte() &&
+                    file.bytes[1] == 'T'.code.toByte() &&
+                    file.bytes[2] == 'h'.code.toByte() &&
+                    file.bytes[3] == 'd'.code.toByte())
+            runCatching {
+                if (isMidi) {
+                    state.importMidi(file.bytes)
+                } else {
+                    state.importShareCode(file.bytes.decodeToString())
+                }
+            }.onSuccess { updated ->
+                onUpdateState(updated)
+                statusMessage = "Fichier « ${file.fileName} » importé (${updated.melody.measures.size} mesures)"
+            }.onFailure { err ->
+                statusMessage = "Erreur d'import (${file.fileName}) : ${err.message ?: "format non reconnu"}"
+            }
+        },
+        onError = { message ->
+            statusMessage = message
+        },
+    )
     var shareCodeText by remember(state.melody, state.instrument, state.tempoBpm) {
         mutableStateOf(state.exportShareCode())
     }
@@ -1795,6 +1866,15 @@ private fun FormatsDialog(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("Exporter en notation ABC (.abc)")
+                }
+
+                HorizontalDivider()
+                Button(
+                    onClick = { importer.pickFile() },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentSage),
+                ) {
+                    Text("Ouvrir un fichier (.abc, .musicxml, .mid)")
                 }
 
                 HorizontalDivider()
