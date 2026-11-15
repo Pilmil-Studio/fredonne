@@ -122,7 +122,8 @@ fun PilmilLegalSection(
                 "Toutes vos données restent sur votre appareil.\n" +
                 "Licence : logiciel libre sous licence MPL-2.0.\n" +
                 "Contact : pilmil.studio@proton.me\n" +
-                "Site : https://relthdrarxash.github.io",
+                "Site : https://pilmil-studio.github.io\n\n" +
+                "Un besoin d'outil hors-ligne sans pub ni suivi ? Écrivez-nous à pilmil.studio@proton.me.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
