@@ -63,6 +63,15 @@ Les idées, les retours d'utilisation et les corrections sont bienvenus dans les
 
 [MPL-2.0](LICENSE). Une application de Pilmil Studio.
 
+## Polices et licences
+
+Le dépôt ne contient aucun fichier de police (`.ttf`, `.otf`, `.woff`). Aucune police tierce n'est donc embarquée pour l'instant :
+
+- **Interface** : l'appli utilise les familles génériques « serif » et « monospace » de Compose, rendues avec les polices du système Android ou iOS.
+- **PDF** : le fichier exporté désigne les polices de base du format PDF (Helvetica et Times) sans les intégrer.
+
+La police musicale Bravura (SMuFL) est prévue pour une version ultérieure, voir [ROADMAP.md](ROADMAP.md). Elle sera ajoutée ici avec sa licence le jour où elle sera embarquée.
+
 ## Fondements
 
 Références sur lesquelles reposent certains choix du moteur :

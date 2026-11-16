@@ -72,7 +72,7 @@ Pas de sauvegarde automatique dans le cloud. L'utilisateur exporte ses partition
 
 ## Rendu de la portée
 
-Dessiné dans Compose avec la police Bravura (SMuFL, licence SIL OFL). Première version limitée aux mélodies à une voix.
+Dessiné dans Compose avec des tracés vectoriels et du texte en polices du système. Aucune police musicale n'est encore embarquée : la police Bravura (SMuFL) est prévue, voir [ROADMAP.md](../ROADMAP.md). Première version limitée aux mélodies à une voix.
 
 ## Ce que les grandes applis font payer, et ce qu'on fait gratuitement
 
