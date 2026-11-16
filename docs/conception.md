@@ -60,10 +60,10 @@ Tout se calcule en fractions exactes. MusicXML sait coder les tuplets (`time-mod
 
 ## Formats
 
-- MusicXML (import et export), y compris le format compressé `.mxl` en lecture.
+- MusicXML 4.0 (import et export). La lecture du format compressé `.mxl` n'est pas encore faite.
 - MIDI (import et export).
-- PDF (export et impression, sans filigrane).
-- ABC en lecture, plus tard.
+- PDF (export, sans filigrane). L'impression depuis l'appli n'est pas encore faite.
+- ABC (export et import, par collage de texte ou QR Code).
 - Aucune permission de stockage : sélecteur de fichiers et partage Android.
 
 ## Sauvegarde
@@ -98,10 +98,10 @@ Chaque étape se termine par une version testable sur le test interne de Google 
 2. **Formats** : lecture et écriture MusicXML et MIDI.
 3. **Rendu et son** : portée dessinée, lecture par le synthétiseur MIDI, retour sonore à chaque note.
 4. **Saisie tactile** : curseur, durées, mini clavier, correction par glissement, annuler et rétablir.
-5. **Version 1.0** : mélodie à une voix, transposition avec instruments transpositeurs, vérificateur de mesures, export MusicXML, MIDI et PDF, historique local. Fiche Play, site, test fermé.
-6. **Version 1.x** : orthographe après transposition, capodastre, partage, impression, retours des testeurs.
+5. **Version 1.0** (publiée, étiquettes v1.0.0 à v1.0.8) : mélodie à une voix, transposition avec instruments transpositeurs, vérificateur de mesures, export MusicXML, MIDI et PDF, historique local. Fiche Play, site, test fermé.
+6. **Version 1.x** : orthographe après transposition, capodastre, impression, retours des testeurs. Le partage par QR Code est déjà présent ; le capodastre et l'impression depuis l'appli ne le sont pas (voir [ROADMAP.md](../ROADMAP.md)).
 7. **Version 2** : modulation métrique, chiffrages irréguliers et tuplets, deuxième voix avec vérification harmonique, chiffrages d'accords, paroles.
-8. **Plus tard** : deuxième portée, lecture ABC, étude du scan de partitions (modèle embarqué, jamais de serveur).
+8. **Plus tard** : deuxième portée, étude du scan de partitions (modèle embarqué, jamais de serveur).
 
 ## Mesurer la qualité
 
