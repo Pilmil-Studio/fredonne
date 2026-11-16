@@ -41,7 +41,8 @@ Kotlin Multiplatform et Compose Multiplatform. Le moteur musical (`core:music`) 
 
 | Module | Rôle |
 |---|---|
-| `core:music` | Modèle musical en fractions exactes (`Fraction`), instruments et harpes, transposition, orthographe enharmonique, détection de tonalité, vérificateur, métronome, boucle, accordeur, détection de hauteur et transcription audio, codecs `MusicXmlCodec`, `MidiCodec`, `AbcCodec`, `ShareCodec`, `QrChunker` et `ScorePdfGenerator`. |
+| `core:music` | Modèle musical en fractions exactes (`Fraction`), instruments et harpes, transposition, orthographe enharmonique, détection de tonalité, vérificateur, métronome, tempo et modulation métrique (`Tempo`, `MetricModulation`), figures de notes (`NoteFigure`), boucle, accordeur, détection de hauteur et transcription audio, codecs `MusicXmlCodec`, `MidiCodec`, `AbcCodec`, `ShareCodec`, `QrChunker` et `ScorePdfGenerator`. |
+| `core:engraving` | Mise en page de la portée à partir du modèle : ce qu'il faut dessiner et où. Kotlin pur, couvert par des tests. |
 | `shared` | Interface Compose (`FredonneApp.kt`), état de l'éditeur (`EditorState.kt`), reprise de session (`EditorSessionCodec.kt`, `SessionStore`), synthétiseur (`ToneSynthesizer.kt`, `AcousticSampleBank.kt`), lecteur audio, micro et QR (`MicTunerBridge`, `QrScanner`), export de fichiers, pour Android et iOS. |
 | `app` | Application Android (`MainActivity.kt`), intégrant `pilmil-core` (sous-module git), tests unitaires et captures. |
 | `iosApp` | Coque iOS / Xcode, non aboutie. |
