@@ -29,12 +29,14 @@ sealed interface Event {
     val length: Fraction get() = tuplet?.let { written * it.factor } ?: written
 }
 
+/** [tiedToNext] : la note est liée à la suivante de même hauteur (une seule attaque à l'écoute). */
 data class Note(
     val pitch: Pitch,
     override val written: Fraction,
     override val tuplet: Tuplet? = null,
     val lyric: String? = null,
     val breathMark: Boolean = false,
+    val tiedToNext: Boolean = false,
 ) : Event
 
 data class Rest(
