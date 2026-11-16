@@ -1,0 +1,8 @@
+- Harpe à pédales de concert (47 cordes) avec suivi des pédales.
+- Clé de sol 8vb pour la partie de ténor.
+- Sons de basse et de harpe, libres de droits.
+- Enregistrement automatique de la partition, reprise à la réouverture.
+- Accordeur chromatique, métronome, boucle et vitesse de lecture.
+- Saisie d'une mélodie en fredonnant.
+- Export et reprise en ABC ; partage par QR Code lu à la caméra.
+- Micro et appareil photo seulement pour ces fonctions. Toujours aucun accès Internet.

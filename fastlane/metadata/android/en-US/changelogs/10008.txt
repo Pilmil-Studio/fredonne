@@ -1,0 +1,1 @@
+Technical update to meet Google Play publishing requirements. Nothing changes in how the app is used.

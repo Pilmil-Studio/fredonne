@@ -1,0 +1,8 @@
+- Concert pedal harp (47 strings) with pedal tracking.
+- Treble clef 8vb for the tenor part.
+- Bass and harp sounds from real instruments, royalty-free.
+- Automatic saving of the score, restored when the app reopens.
+- Chromatic tuner, metronome, practice loop and playback speed.
+- Hum to write a melody.
+- ABC export and import; QR Code sharing read with the camera.
+- Microphone and camera requested only for these features. Still no internet access.
