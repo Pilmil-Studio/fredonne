@@ -50,7 +50,7 @@
 @media (prefers-color-scheme: light) {
   :root {
     --bg: #FAF8F4; --bg2: #EFEAE0; --fg: #181A1F; --muted: #58606E; --line: #DDD6C8;
-    --accent: #B45309; --accent-solid: #B45309; --on-accent: #FFFFFF;
+    --accent: #A04B08; --accent-solid: #B45309; --on-accent: #FFFFFF;
     --panel: color-mix(in srgb, #000 3%, transparent);
     color-scheme: light;
   }
@@ -162,12 +162,27 @@ h2 { font-size: var(--step-3); line-height: 1.12; letter-spacing: -0.015em; marg
   .bkey { width: 44px; }
 }
 
+/* Accessibilité */
+.skip { position: absolute; left: var(--space-2); top: -4rem; z-index: 10; padding: 10px 16px; border-radius: var(--radius-s); background: var(--fg); color: var(--bg); font-weight: 700; }
+.skip:focus { top: var(--space-2); }
+.sim-frame :focus-visible { outline-color: var(--paper-ink); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+
+@media print {
+  body { background: #fff; color: #000; }
+  .top, .skip, .cta, .staff-card, #simulateur, #captures { display: none; }
+  .card, .rules li { border-color: #999; background: none; break-inside: avoid; }
+  .kicker, .card a, .lead, .sub, .card p, .foot, .rules span { color: #000; }
+  a { text-decoration: underline; }
+}
+
 .foot { border-top: 1px solid var(--line); padding-block: var(--space-4) var(--space-5); color: var(--muted); font-size: var(--step--1); display: grid; gap: var(--space-2); }
 .foot p { margin: 0; }
 .foot a { color: var(--fg); }
 </style>
 </head>
 <body>
+<a class="skip" href="#contenu">Aller au contenu</a>
 <header class="wrap top">
   <a class="brand" href="./">
     <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true">
@@ -188,7 +203,7 @@ h2 { font-size: var(--step-3); line-height: 1.12; letter-spacing: -0.015em; marg
   </nav>
 </header>
 
-<main>
+<main id="contenu">
 <div class="wrap hero">
   <div>
     <p class="kicker">Notation mélodique · Libre &amp; hors-ligne</p>
