@@ -468,6 +468,12 @@ data class EditorState(
         )
     }
 
+    /** Remplace la mélodie par une transcription (fredonnement) ; annulable comme les autres modifications. */
+    fun applyTranscribedMelody(transcribed: Melody): EditorState {
+        val base = pushUndo()
+        return base.copy(melody = transcribed, cursorMeasure = 0, cursorEventIndex = 0)
+    }
+
     companion object {
         fun defaultMelody(): Melody = Melody(
             key = Key(Step.C, 0, Mode.MAJOR),

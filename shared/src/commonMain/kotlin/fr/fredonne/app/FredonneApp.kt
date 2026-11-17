@@ -692,11 +692,7 @@ fun FredonneApp(
         HumDialog(
             state = state,
             onApplyMelody = { transcribed ->
-                state = state.copy(
-                    melody = transcribed,
-                    cursorMeasure = 0,
-                    cursorEventIndex = 0,
-                )
+                state = state.applyTranscribedMelody(transcribed)
                 showHumDialog = false
             },
             onDismiss = { showHumDialog = false },
