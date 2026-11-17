@@ -134,6 +134,7 @@ import fr.fredonne.core.music.VoiceCrossing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 import kotlin.time.TimeSource
 
@@ -2297,11 +2298,16 @@ private fun HumDialog(
 ) {
     var recording by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("Appuyez sur Enregistrer puis fredonnez une courte phrase.") }
-    val buffer = remember { mutableListOf<Float>() }
+    var busy by remember { mutableStateOf(false) }
+    var capture by remember { mutableStateOf<HumCapture?>(null) }
+    val scope = rememberCoroutineScope()
     var session by remember { mutableStateOf<LiveMicSession?>(null) }
 
     androidx.compose.runtime.DisposableEffect(Unit) {
-        onDispose { session?.stop() }
+        onDispose {
+            session?.stop()
+            capture?.cancel()
+        }
     }
 
     AlertDialog(
@@ -2314,39 +2320,47 @@ private fun HumDialog(
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(status, fontSize = 14.sp, color = MutedInk)
                 androidx.compose.material3.Button(
+                    enabled = !busy,
                     onClick = {
                         if (!recording) {
-                            buffer.clear()
                             val mic = createLiveMicSession()
                             if (mic == null) {
                                 status = "Capture micro indisponible sur cet appareil."
                                 return@Button
                             }
                             session = mic
+                            val current = HumCapture(scope)
+                            capture = current
                             recording = true
                             status = "Enregistrement en cours… Fredonnez puis appuyez sur Terminer."
-                            mic.start(16_000) { chunk ->
-                                if (buffer.size < 16_000 * 20) {
-                                    for (s in chunk) buffer.add(s)
-                                }
-                            }
+                            mic.start(16_000) { chunk -> current.offer(chunk) }
                         } else {
                             recording = false
                             session?.stop()
                             session = null
-                            val samples = buffer.toFloatArray()
-                            if (samples.size < 4000) {
-                                status = "Enregistrement trop court, réessayez."
-                            } else {
-                                val transcribed = AudioMelodyTranscriber(
-                                    fr.fredonne.core.music.AudioPitchDetector(sampleRate = 16_000),
-                                ).transcribePcm(
-                                    pcm = samples,
-                                    bpm = state.tempoBpm,
-                                    time = state.melody.time,
-                                    key = state.melody.key,
-                                )
-                                onApplyMelody(transcribed)
+                            val finished = capture
+                            capture = null
+                            busy = true
+                            status = "Transcription en cours…"
+                            scope.launch {
+                                val samples = finished?.finish() ?: FloatArray(0)
+                                if (samples.size < 4000) {
+                                    status = "Enregistrement trop court, réessayez."
+                                    busy = false
+                                } else {
+                                    val transcribed = withContext(Dispatchers.Default) {
+                                        AudioMelodyTranscriber(
+                                            fr.fredonne.core.music.AudioPitchDetector(sampleRate = 16_000),
+                                        ).transcribePcm(
+                                            pcm = samples,
+                                            bpm = state.tempoBpm,
+                                            time = state.melody.time,
+                                            key = state.melody.key,
+                                        )
+                                    }
+                                    busy = false
+                                    onApplyMelody(transcribed)
+                                }
                             }
                         }
                     },
