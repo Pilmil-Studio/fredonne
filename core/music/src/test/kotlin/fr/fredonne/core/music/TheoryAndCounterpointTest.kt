@@ -50,7 +50,7 @@ class TheoryAndCounterpointTest {
     }
 
     @Test
-    fun `respellPractical simplifie une tonalite theorique a 8 dieses en Lab majeur (4 bemols)`() {
+    fun `respellPractical simplifie une tonalite theorique a 8 dieses en Lab majeur - 4 bemols`() {
         val gSharpMajor = Key(Step.G, 1, Mode.MAJOR) // 8 dièses
         val m = Melody(
             key = gSharpMajor,

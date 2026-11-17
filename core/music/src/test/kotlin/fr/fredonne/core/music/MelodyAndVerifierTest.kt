@@ -124,7 +124,7 @@ class MelodyAndVerifierTest {
     }
 
     @Test
-    fun `note trop grave pour la clarinette (sons réels)`() {
+    fun `note trop grave pour la clarinette - sons réels`() {
         // Re 3 réel est le plus bas de la clarinette en si bémol : do dièse 3 est trop grave.
         val low = Measure(
             listOf(note(Step.D, 3), note(Step.C, 3, 1), note(Step.D, 3), note(Step.D, 3)),
