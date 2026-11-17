@@ -166,6 +166,9 @@ fun FredonneTheme(content: @Composable () -> Unit) {
 
 private const val AUTOSAVE_DELAY_MS = 700L
 
+private const val MIC_TOOL_TUNER = "tuner"
+private const val MIC_TOOL_HUM = "hum"
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun FredonneApp(
@@ -211,7 +214,23 @@ fun FredonneApp(
         onboarded = true
     }
 
-    val micPermission = rememberMicPermissionState { _ ->
+    var showTunerDialog by rememberSaveable { mutableStateOf(false) }
+    var showHumDialog by rememberSaveable { mutableStateOf(false) }
+    // Outil micro demandé avant l'autorisation : ouvert si elle est accordée, message sinon.
+    var pendingMicTool by remember { mutableStateOf<String?>(null) }
+    var showMicDeniedDialog by rememberSaveable { mutableStateOf(false) }
+    val micPermission = rememberMicPermissionState { granted ->
+        val tool = pendingMicTool
+        if (tool != null) {
+            pendingMicTool = null
+            if (!granted) {
+                showMicDeniedDialog = true
+            } else if (tool == MIC_TOOL_TUNER) {
+                showTunerDialog = true
+            } else {
+                showHumDialog = true
+            }
+        }
         if (finishOnboardingAfterMic) {
             finishOnboardingAfterMic = false
             completeOnboarding(pendingOnboardingInstrument, pendingOnboardingSample)
@@ -250,8 +269,6 @@ fun FredonneApp(
     var showConfirmClearDialog by rememberSaveable { mutableStateOf(false) }
     var showOverflowMenu by rememberSaveable { mutableStateOf(false) }
     var readingMode by rememberSaveable { mutableStateOf(false) }
-    var showTunerDialog by rememberSaveable { mutableStateOf(false) }
-    var showHumDialog by rememberSaveable { mutableStateOf(false) }
     var baseOctave by remember { mutableIntStateOf(4) }
     val latestState by rememberUpdatedState(state)
     val latestIsPlaying by rememberUpdatedState(isPlaying)
@@ -444,16 +461,28 @@ fun FredonneApp(
                         Text("Répéter$suffix")
                     },
                 )
-                if (micPermission.granted) {
-                    AssistChip(
-                        onClick = { showTunerDialog = true },
-                        label = { Text("Accordeur") },
-                    )
-                    AssistChip(
-                        onClick = { showHumDialog = true },
-                        label = { Text("Fredonner") },
-                    )
-                }
+                AssistChip(
+                    onClick = {
+                        if (micPermission.granted) {
+                            showTunerDialog = true
+                        } else {
+                            pendingMicTool = MIC_TOOL_TUNER
+                            micPermission.request()
+                        }
+                    },
+                    label = { Text("Accordeur") },
+                )
+                AssistChip(
+                    onClick = {
+                        if (micPermission.granted) {
+                            showHumDialog = true
+                        } else {
+                            pendingMicTool = MIC_TOOL_HUM
+                            micPermission.request()
+                        }
+                    },
+                    label = { Text("Fredonner") },
+                )
                 if (state.noteBeforeCursor != null) {
                     AssistChip(
                         onClick = { showLyricDialog = true },
@@ -687,6 +716,23 @@ fun FredonneApp(
         TunerDialog(
             referenceA4Hz = state.tunerReferenceA4Hz,
             onDismiss = { showTunerDialog = false },
+        )
+    }
+
+    if (showMicDeniedDialog) {
+        AlertDialog(
+            onDismissRequest = { showMicDeniedDialog = false },
+            title = { Text("Micro refusé") },
+            text = { Text("L'accordeur et « Fredonner » ont besoin du micro. Vous pouvez l'autoriser dans les réglages du système.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showMicDeniedDialog = false
+                        micPermission.openSettings()
+                    },
+                ) { Text("Réglages système") }
+            },
+            dismissButton = { TextButton(onClick = { showMicDeniedDialog = false }) { Text("Fermer") } },
         )
     }
 
@@ -2404,7 +2450,7 @@ private fun SettingsDialog(
                     )
                 } else {
                     Text(
-                        "Microphone non autorisé : l'accordeur et la dictée vocale sont masqués. Activez le micro pour les faire apparaître.",
+                        "Microphone non autorisé : l'accordeur et la dictée vocale demanderont l'autorisation à leur premier usage.",
                         fontSize = 13.sp,
                         color = MutedInk,
                     )
