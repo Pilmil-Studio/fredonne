@@ -84,7 +84,7 @@ class Fraction private constructor(val numerator: Long, val denominator: Long) :
 
         private fun addExact(x: Long, y: Long): Long {
             val r = x + y
-            if (((x xor r) and (y xor r)) < 0L) throw IllegalStateException("long overflow")
+            if (((x xor r) and (y xor r)) < 0L) error("long overflow")
             return r
         }
 
@@ -94,7 +94,7 @@ class Fraction private constructor(val numerator: Long, val denominator: Long) :
             val ay = abs(y)
             if ((ax or ay) ushr 31 != 0L) {
                 if ((y != 0L && r / y != x) || (x == Long.MIN_VALUE && y == -1L)) {
-                    throw IllegalStateException("long overflow")
+                    error("long overflow")
                 }
             }
             return r
