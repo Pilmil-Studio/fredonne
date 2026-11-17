@@ -1,6 +1,8 @@
 package fr.fredonne.app
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,6 +28,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -74,6 +77,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -160,7 +164,7 @@ fun FredonneTheme(content: @Composable () -> Unit) {
 
 private const val AUTOSAVE_DELAY_MS = 700L
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun FredonneApp(
     initialOnboarded: Boolean? = null,
@@ -535,9 +539,9 @@ fun FredonneApp(
                 val backspaceInteraction = remember { MutableInteractionSource() }
                 val isBackspacePressed by backspaceInteraction.collectIsPressedAsState()
                 val latestDelete by rememberUpdatedState { state = state.deleteAtCursor() }
+                // Appui simple : une note (action TalkBack nommée) ; appui maintenu : effacement en continu.
                 LaunchedEffect(isBackspacePressed) {
                     if (isBackspacePressed) {
-                        latestDelete()
                         delay(360L)
                         while (isBackspacePressed) {
                             latestDelete()
@@ -545,12 +549,26 @@ fun FredonneApp(
                         }
                     }
                 }
-                IconButton(
-                    onClick = {},
-                    interactionSource = backspaceInteraction,
-                    modifier = Modifier.size(34.dp),
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .combinedClickable(
+                            interactionSource = backspaceInteraction,
+                            indication = null,
+                            role = Role.Button,
+                            onClickLabel = "Supprimer la note avant le curseur",
+                            onLongClickLabel = "Effacer en continu",
+                            // Au toucher, la boucle ci-dessus gère l'appui long ; l'action d'accessibilité supprime une note.
+                            onLongClick = { if (!isBackspacePressed) latestDelete() },
+                            onClick = { latestDelete() },
+                        ),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Backspace, contentDescription = "Supprimer note (maintenir pour effacer en continu)")
+                    Icon(
+                        Icons.AutoMirrored.Filled.Backspace,
+                        contentDescription = "Supprimer la note. Maintenir l'appui pour effacer en continu.",
+                    )
                 }
             }
 
