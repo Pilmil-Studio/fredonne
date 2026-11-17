@@ -12,4 +12,4 @@ Constats avant reprise :
 7. Cartes de fonctions : texte de 15,4 px dans une colonne de 199 px à 1280 px, soit environ 26 caractères par ligne, interligne 1,5.
 8. Cartes « Fondements » : colonne de 285 px à 1280 px (environ 37 caractères par ligne) ; la 5e carte reste seule sur sa rangée. Le nombre de colonnes est fixé par un `style` en ligne.
 9. Pied de page : liens de 20 px de haut à 1280 px, sans espacement vertical entre eux ; pas de lien d'évitement, pas de règle `@media print`.
-10. Valeurs libres : environ 20 rayons, 6 tailles de police et 4 ombres différents dans le `<style>` ; `confidentialite.html` a ses propres couleurs, sans échelle commune.
+10. Valeurs libres : 7 rayons différents (6, 12, 14, 20, 22, 999 px et un rayon à deux valeurs), 15 tailles de police différentes (0,68 à 1,3 rem, 18 px et 2 `clamp`), 1 ombre dans la feuille et 2 autres en `style` en ligne ; `confidentialite.html` a son propre `<style>` avec 5 couleurs, sans échelle commune.
