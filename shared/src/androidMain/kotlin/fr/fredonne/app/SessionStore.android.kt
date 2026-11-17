@@ -48,7 +48,7 @@ actual fun OnAppBackground(onBackground: () -> Unit) {
     val current by rememberUpdatedState(onBackground)
     DisposableEffect(owner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE) current()
+            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) current()
         }
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer) }

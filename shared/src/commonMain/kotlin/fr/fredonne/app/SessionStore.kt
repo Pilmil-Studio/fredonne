@@ -17,7 +17,7 @@ interface SessionStore {
 @Composable
 expect fun rememberSessionStore(): SessionStore
 
-/** Appelle [onBackground] quand l'appli quitte le premier plan (pause, retour à l'accueil, rotation). */
+/** Appelle [onBackground] quand l'appli quitte le premier plan (pause, arrêt, retour à l'accueil, rotation). */
 @Composable
 expect fun OnAppBackground(onBackground: () -> Unit)
 

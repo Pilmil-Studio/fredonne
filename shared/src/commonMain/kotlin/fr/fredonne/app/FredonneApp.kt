@@ -72,6 +72,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -239,18 +240,18 @@ fun FredonneApp(
     var isPlaying by remember { mutableStateOf(false) }
     var playingPosition by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
-    var showKeyDialog by remember { mutableStateOf(false) }
-    var showInstrumentDialog by remember { mutableStateOf(false) }
-    var showFormatsDialog by remember { mutableStateOf(false) }
-    var showRehearsalDialog by remember { mutableStateOf(false) }
-    var showLyricDialog by remember { mutableStateOf(false) }
-    var showAboutDialog by remember { mutableStateOf(false) }
-    var showSettingsDialog by remember { mutableStateOf(false) }
-    var showConfirmClearDialog by remember { mutableStateOf(false) }
-    var showOverflowMenu by remember { mutableStateOf(false) }
-    var readingMode by remember { mutableStateOf(false) }
-    var showTunerDialog by remember { mutableStateOf(false) }
-    var showHumDialog by remember { mutableStateOf(false) }
+    var showKeyDialog by rememberSaveable { mutableStateOf(false) }
+    var showInstrumentDialog by rememberSaveable { mutableStateOf(false) }
+    var showFormatsDialog by rememberSaveable { mutableStateOf(false) }
+    var showRehearsalDialog by rememberSaveable { mutableStateOf(false) }
+    var showLyricDialog by rememberSaveable { mutableStateOf(false) }
+    var showAboutDialog by rememberSaveable { mutableStateOf(false) }
+    var showSettingsDialog by rememberSaveable { mutableStateOf(false) }
+    var showConfirmClearDialog by rememberSaveable { mutableStateOf(false) }
+    var showOverflowMenu by rememberSaveable { mutableStateOf(false) }
+    var readingMode by rememberSaveable { mutableStateOf(false) }
+    var showTunerDialog by rememberSaveable { mutableStateOf(false) }
+    var showHumDialog by rememberSaveable { mutableStateOf(false) }
     var baseOctave by remember { mutableIntStateOf(4) }
     val latestState by rememberUpdatedState(state)
     val latestIsPlaying by rememberUpdatedState(isPlaying)
