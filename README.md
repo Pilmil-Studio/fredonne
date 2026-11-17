@@ -1,6 +1,6 @@
 # Fredonne
 
-Fredonne sert à noter une mélodie sur son téléphone, à l'écouter et à la transposer, par exemple pour un instrument en si bémol, en mi bémol ou en fa. Il s'adresse aux choristes et aux musiciens d'harmonie ou d'orchestre qui veulent garder un thème, l'apprendre ou le partager. Tout reste sur l'appareil : pas de compte, pas de publicité, pas d'accès à Internet.
+Notez une mélodie sur votre téléphone, écoutez-la et transposez-la pour votre instrument, par exemple un instrument en si bémol, en mi bémol ou en fa, hors ligne et sans compte. Fredonne s'adresse aux choristes et aux musiciens d'harmonie ou d'orchestre qui veulent garder un thème, l'apprendre ou le partager. Tout reste sur l'appareil : pas de compte, pas de publicité, pas d'accès à Internet.
 
 - Site : <https://pilmil-studio.github.io/fredonne/>
 - Téléchargement (Android) : <https://github.com/Pilmil-Studio/fredonne/releases/latest>
@@ -62,6 +62,15 @@ Les idées, les retours d'utilisation et les corrections sont bienvenus dans les
 ## Licence
 
 [MPL-2.0](LICENSE). Une application de Pilmil Studio.
+
+## Polices et licences
+
+Le dépôt ne contient aucun fichier de police (`.ttf`, `.otf`, `.woff`). Aucune police tierce n'est donc embarquée pour l'instant :
+
+- **Interface** : l'appli utilise les familles génériques « serif » et « monospace » de Compose, rendues avec les polices du système Android ou iOS.
+- **PDF** : le fichier exporté désigne les polices de base du format PDF (Helvetica et Times) sans les intégrer.
+
+La police musicale Bravura (SMuFL) est prévue pour une version ultérieure, voir [ROADMAP.md](ROADMAP.md). Elle sera ajoutée ici avec sa licence le jour où elle sera embarquée.
 
 ## Fondements
 

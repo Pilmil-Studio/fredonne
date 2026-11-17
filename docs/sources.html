@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sources des transpositions et des tessitures : Fredonne</title>
+<meta name="description" content="Comment les transpositions et les tessitures des instruments de Fredonne ont été vérifiées, et quels écarts restent ouverts.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Sources des transpositions et des tessitures : Fredonne">
+<meta property="og:description" content="Vérification des transpositions et des tessitures des instruments de Fredonne, avec les écarts encore ouverts.">
+<meta property="og:url" content="https://pilmil-studio.github.io/fredonne/sources.html">
+<meta property="og:image" content="https://pilmil-studio.github.io/fredonne/store/feature-1024x500.png">
+<link rel="icon" type="image/png" sizes="512x512" href="store/icon-512.png">
+<style>
+:root { --bg: #FAF8F4; --fg: #181A1F; --muted: #58606E; --line: #DDD6C8; --accent: #B45309; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #111318; --fg: #F3F4F6; --muted: #A3AAB8; --line: #2C323F; --accent: #F59E0B; }
+}
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.65; }
+main { max-width: 720px; margin: 0 auto; padding: 36px 20px 64px; }
+a { color: var(--accent); }
+h1 { margin-top: 0; }
+h2 { margin-top: 28px; font-size: 1.25rem; }
+p, li { color: var(--muted); }
+strong { color: var(--fg); }
+</style>
+</head>
+<body>
+<main>
+  <p><a href="./">← Retour à Fredonne</a></p>
+  <h1>Sources des transpositions et des tessitures</h1>
+  <p>Les transpositions et les tessitures des instruments de Fredonne ont été comparées à des références ouvertes, le 16 novembre 2026. Cette vérification n'a modifié aucun code. Elle donne un verdict par instrument : concordance, écart ou non vérifié.</p>
+
+  <h2>Méthode</h2>
+  <p>La tessiture est comparée en hauteurs écrites, celles que lit le musicien. Pour chaque transposition, la hauteur sonore donnée par le code est comparée à celle que disent les sources pour un do écrit. Les références sont des encyclopédies en ligne, des pages de bibliothèques sonores d'orchestre et une bibliothèque universitaire. Trois d'entre elles ont été lues par un outil d'extraction qui a parfois fourni des intervalles inexacts : les verdicts ont donc été recalculés à partir des noms de notes.</p>
+
+  <h2>Transpositions</h2>
+  <p>Les dix instruments transpositeurs du code concordent avec les sources : clarinette, saxophones, trompette, cor en fa, guitare, guitare basse et contrebasse. Pour le hautbois et la harpe celtique, aucune source ouverte ne confirme la transposition.</p>
+
+  <h2>Écarts encore ouverts</h2>
+  <p>Trois points demandent un arbitrage humain. Le trombone du code est le trombone ténor en ut ; la variante en si bémol, fréquente en harmonie, n'est pas modélisée, et une seule source la signale. Pour la harpe à pédales, les sources ne s'accordent pas sur la note la plus aiguë, sol bémol 7 ou sol dièse 7 : le point touche la tessiture, pas la transposition. Enfin, pour la contrebasse et la guitare, les bornes aiguës du code et celles des sources ne coïncident pas : le code s'arrête plus bas pour la contrebasse et va plus haut pour la guitare.</p>
+  <p>La plupart des autres écarts de tessiture concernent l'extrémité aiguë : flûte, saxophones, trompette, trombone et voix de ténor. La voix d'alto présente un écart mineur dans le grave. La tessiture du saxophone baryton, la guitare basse dans l'aigu et la clé d'octave de la voix de ténor n'ont pas été vérifiées.</p>
+
+  <h2>Détail complet</h2>
+  <p>Le fichier de référence contient le tableau instrument par instrument, avec les verdicts, puis le détail de chaque source avec sa date de consultation et son adresse : <a href="https://github.com/Pilmil-Studio/fredonne/blob/main/docs/sources-instruments.md">docs/sources-instruments.md sur GitHub</a>.</p>
+
+  <footer style="margin-top:40px;padding-top:20px;border-top:1px solid var(--line);font-size:0.9rem;color:var(--muted);">
+    <p><img src="pilmil-logo.svg" alt="" width="18" height="18" style="vertical-align:-3px;margin-right:6px"><a href="https://pilmil-studio.github.io/"><strong>Pilmil Studio</strong></a> · France · Licence libre MPL-2.0</p>
+    <p>Contact : <a href="mailto:pilmil.studio@proton.me">pilmil.studio@proton.me</a> · <a href="confidentialite.html">Confidentialité</a></p>
+  </footer>
+</main>
+</body>
+</html>
