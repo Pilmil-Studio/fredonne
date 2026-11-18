@@ -1,0 +1,92 @@
+{
+  "brand": {
+    "name": "Fredonne",
+    "bg1": "#285D4D",
+    "bg2": "#10261F",
+    "accent": "#E8C88A",
+    "onBg": "#FAF8F4",
+    "icon": "fastlane/metadata/android/fr-FR/images/icon.png",
+    "font": {
+      "file": "docs/fonts/atkinson-800.woff2",
+      "weight": 800,
+      "body_file": "docs/fonts/atkinson-400.woff2",
+      "bold_file": "docs/fonts/atkinson-700.woff2"
+    }
+  },
+  "langs": {
+    "fr": {
+      "tagline": "Vos mélodies en poche, sans Internet",
+      "social_line": "Éditeur de partitions de poche, libre et hors ligne : saisie au clavier, accordeur, export PDF, MusicXML et MIDI.",
+      "chips": [
+        "Hors ligne",
+        "Sans compte"
+      ],
+      "screens": [
+        {
+          "slug": "bienvenue",
+          "capture": "docs/marketing/captures/fr/bienvenue.png",
+          "layout": "solo",
+          "tilt": -3,
+          "title": "Une partition dans la poche",
+          "subtitle": "Choisissez votre instrument et commencez, sans compte ni connexion.",
+          "chips": [
+            "Hors ligne",
+            "Sans compte"
+          ],
+          "side_title": "Prêt en un instant",
+          "side_subtitle": "Choisissez votre instrument et commencez, sans compte ni connexion.",
+          "side": "left"
+        },
+        {
+          "slug": "editeur",
+          "capture": "docs/marketing/captures/fr/editeur.png",
+          "layout": "solo",
+          "tilt": 3,
+          "title": "Écrire sur la portée",
+          "subtitle": "Les notes se posent sur la portée, avec les paroles sous chaque note.",
+          "chips": [],
+          "side_title": "Écrire sur la portée",
+          "side_subtitle": "Notes et paroles s'affichent sur la portée, mesure après mesure.",
+          "side": "right"
+        },
+        {
+          "slug": "saisie",
+          "capture": "docs/marketing/captures/fr/saisie.png",
+          "layout": "solo",
+          "tilt": -3,
+          "title": "Saisie au clavier",
+          "subtitle": "Durées, points et silences se choisissent d'un appui ; le clavier joue la note.",
+          "chips": [],
+          "side_title": "Saisie au clavier",
+          "side_subtitle": "Durées, points et silences d'un appui ; le clavier joue chaque note.",
+          "side": "left"
+        },
+        {
+          "slug": "transposition",
+          "capture": "docs/marketing/captures/fr/transposition.png",
+          "layout": "solo",
+          "tilt": 3,
+          "title": "Écrit pour votre instrument",
+          "subtitle": "La partition s'affiche transposée pour la clarinette, le saxophone, le cor et d'autres.",
+          "chips": [],
+          "side_title": "Pour votre instrument",
+          "side_subtitle": "La partition s'affiche transposée pour la clarinette, le cor et d'autres.",
+          "side": "right"
+        },
+        {
+          "slug": "repetition",
+          "capture": "docs/marketing/captures/fr/repetition.png",
+          "layout": "solo",
+          "tilt": -3,
+          "title": "Répéter un passage",
+          "subtitle": "Bouclez quelques mesures et ralentissez pour travailler un passage difficile.",
+          "chips": [],
+          "side_title": "Répéter à son rythme",
+          "side_subtitle": "Bouclez quelques mesures et ralentissez pour travailler un passage.",
+          "side": "left"
+        }
+      ],
+      "feature_capture": "docs/marketing/captures/fr/editeur.png"
+    }
+  }
+}
