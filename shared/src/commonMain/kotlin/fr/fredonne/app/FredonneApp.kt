@@ -444,7 +444,7 @@ fun FredonneApp(
                 AssistChip(
                     onClick = { showInstrumentDialog = true },
                     label = {
-                        Text(state.instrument?.let { instrumentLabel(it) } ?: "Instrument : Concert (Ut)")
+                        Text(state.instrument?.let { instrumentLabel(it) } ?: "Instrument : En Ut (standard)")
                     },
                 )
                 AssistChip(
@@ -492,7 +492,7 @@ fun FredonneApp(
                                 if (!note?.lyric.isNullOrBlank()) append(" : ${note?.lyric}")
                                 if (note?.breathMark == true) append(" '")
                             }
-                            Text("Parole · Resp.$detail")
+                            Text("Paroles$detail")
                         },
                     )
                 }
@@ -2103,7 +2103,7 @@ private fun ImportTabContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(100.dp),
-            placeholder = { Text("Collez ici du texte ABC, MusicXML ou FR1…", fontSize = 12.sp) },
+            placeholder = { Text("Collez ici du texte ABC ou MusicXML…", fontSize = 12.sp) },
             textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
         )
         OutlinedButton(
@@ -2169,7 +2169,7 @@ private fun RehearsalDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text("Métronome & Tap Tempo", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Text("Métronome & battue manuelle", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -2181,7 +2181,7 @@ private fun RehearsalDialog(
                             tracker.tap(nowMs)?.let { bpm -> onUpdateState(state.setTempo(bpm)) }
                         },
                     ) {
-                        Text("Tap (${state.tempoBpm})")
+                        Text("Battre (${state.tempoBpm})")
                     }
                     FilterChip(
                         selected = metronomeRunning,
@@ -2211,7 +2211,7 @@ private fun RehearsalDialog(
 
                 HorizontalDivider()
 
-                Text("Boucle A–B & Vitesse", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Text("Boucle & Vitesse", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -2219,44 +2219,52 @@ private fun RehearsalDialog(
                     FilterChip(
                         selected = state.loopEnabled,
                         onClick = { onUpdateState(state.toggleLoop()) },
-                        label = { Text(if (state.loopEnabled) "Boucle active" else "Activer boucle") },
+                        label = { Text(if (state.loopEnabled) "Boucle active" else "Activer la boucle") },
                     )
                     if (state.loopEnabled && state.melody.measures.isNotEmpty()) {
-                        val maxIdx = state.melody.measures.lastIndex
                         Text(
-                            "M${state.loopStartMeasure + 1}–M${state.loopEndMeasure + 1}",
+                            "Mesures ${state.loopStartMeasure + 1} à ${state.loopEndMeasure + 1}",
                             fontSize = 13.sp,
                             color = AccentSage,
                             fontWeight = FontWeight.Medium,
                         )
-                        TextButton(
-                            onClick = {
-                                val nextStart = (state.loopStartMeasure + 1).coerceAtMost(state.loopEndMeasure)
-                                onUpdateState(state.setLoopRange(nextStart, state.loopEndMeasure))
-                            },
-                            enabled = state.loopStartMeasure < state.loopEndMeasure,
-                        ) { Text("A+") }
+                    }
+                }
+                if (state.loopEnabled && state.melody.measures.isNotEmpty()) {
+                    val maxIdx = state.melody.measures.lastIndex
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         TextButton(
                             onClick = {
                                 val prevStart = (state.loopStartMeasure - 1).coerceAtLeast(0)
                                 onUpdateState(state.setLoopRange(prevStart, state.loopEndMeasure))
                             },
                             enabled = state.loopStartMeasure > 0,
-                        ) { Text("A-") }
+                        ) { Text("Début −") }
                         TextButton(
                             onClick = {
-                                val nextEnd = (state.loopEndMeasure + 1).coerceAtMost(maxIdx)
-                                onUpdateState(state.setLoopRange(state.loopStartMeasure, nextEnd))
+                                val nextStart = (state.loopStartMeasure + 1).coerceAtMost(state.loopEndMeasure)
+                                onUpdateState(state.setLoopRange(nextStart, state.loopEndMeasure))
                             },
-                            enabled = state.loopEndMeasure < maxIdx,
-                        ) { Text("B+") }
+                            enabled = state.loopStartMeasure < state.loopEndMeasure,
+                        ) { Text("Début +") }
                         TextButton(
                             onClick = {
                                 val prevEnd = (state.loopEndMeasure - 1).coerceAtLeast(state.loopStartMeasure)
                                 onUpdateState(state.setLoopRange(state.loopStartMeasure, prevEnd))
                             },
                             enabled = state.loopEndMeasure > state.loopStartMeasure,
-                        ) { Text("B-") }
+                        ) { Text("Fin −") }
+                        TextButton(
+                            onClick = {
+                                val nextEnd = (state.loopEndMeasure + 1).coerceAtMost(maxIdx)
+                                onUpdateState(state.setLoopRange(state.loopStartMeasure, nextEnd))
+                            },
+                            enabled = state.loopEndMeasure < maxIdx,
+                        ) { Text("Fin +") }
                     }
                 }
                 Row(
@@ -2274,7 +2282,7 @@ private fun RehearsalDialog(
 
                 HorizontalDivider()
 
-                Text("Diapason (référence La4)", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Text("Diapason (La)", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -2296,7 +2304,7 @@ private fun RehearsalDialog(
                             )
                         },
                     ) {
-                        Text("Écouter La4")
+                        Text("Écouter le La")
                     }
                 }
             }
@@ -2318,7 +2326,7 @@ private fun LyricAndBreathDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Parole & respiration") },
+        title = { Text("Paroles & respiration") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
@@ -2534,7 +2542,7 @@ private fun SettingsDialog(
                     }
                 }
                 HorizontalDivider(color = Color(0xFFECE9E2))
-                Text("Diapason (La4)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = InkColor)
+                Text("Diapason (La)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = InkColor)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(440.0, 442.0).forEach { hz ->
                         FilterChip(
