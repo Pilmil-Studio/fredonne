@@ -449,7 +449,7 @@ fun FredonneApp(
                 )
                 AssistChip(
                     onClick = { showFormatsDialog = true },
-                    label = { Text("MusicXML · MIDI · PDF") },
+                    label = { Text("Exporter · Importer") },
                 )
                 AssistChip(
                     onClick = { showRehearsalDialog = true },
@@ -1791,6 +1791,8 @@ private fun OnboardingScreen(
     }
 }
 
+private enum class FormatsTab { EXPORT, IMPORT }
+
 @Composable
 private fun FormatsDialog(
     state: EditorState,
@@ -1798,6 +1800,7 @@ private fun FormatsDialog(
     onUpdateState: (EditorState) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    var activeTab by remember { mutableStateOf(FormatsTab.EXPORT) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
     var showQrScanner by remember { mutableStateOf(false) }
     val importer = rememberScoreImporter(
@@ -1826,26 +1829,11 @@ private fun FormatsDialog(
             statusMessage = message
         },
     )
-    var shareCodeText by remember(state.melody, state.instrument, state.tempoBpm) {
-        mutableStateOf(state.exportShareCode())
-    }
-    val qrChunks = remember(shareCodeText) {
-        QrChunker.split(shareCodeText)
-    }
-    var qrPageIndex by remember(qrChunks) { mutableStateOf(0) }
-    val currentChunk = qrChunks.getOrNull(qrPageIndex).orEmpty()
-    val qrMatrix = remember(currentChunk) {
-        if (currentChunk.isEmpty()) null else QrCodeEncoder.encodeOrNull(currentChunk)
-    }
-    var xmlText by remember(state.melody, state.instrument) {
-        mutableStateOf(state.exportMusicXml())
-    }
 
     if (showQrScanner) {
         QrScannerDialog(
             onPayloadAssembled = { payload ->
                 showQrScanner = false
-                shareCodeText = payload
                 runCatching { state.importShareCode(payload) }
                     .onSuccess { updated ->
                         onUpdateState(updated)
@@ -1861,191 +1849,46 @@ private fun FormatsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Formats ouverts & QR Code hors-ligne") },
+        title = { Text("Exporter & Importer") },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(
-                    text = "Exportez la partition (avec transposition instrumentale et QR code de reprise sur le PDF) ou importez une partition hors-ligne.",
-                    fontSize = 13.sp,
-                    color = MutedInk,
-                )
-                OutlinedButton(
-                    onClick = {
-                        val xml = state.exportMusicXml()
-                        xmlText = xml
-                        val path = exporter.exportBytes(
-                            fileName = "fredonne_partition.musicxml",
-                            mimeType = "application/vnd.recordare.musicxml+xml",
-                            bytes = xml.encodeToByteArray(),
-                        )
-                        statusMessage = "MusicXML 4.0 exporté ($path)"
-                    },
+                Row(
                     modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("Exporter en MusicXML (.musicxml)")
-                }
-                OutlinedButton(
-                    onClick = {
-                        val midi = state.exportMidi()
-                        val path = exporter.exportBytes(
-                            fileName = "fredonne_melodie.mid",
-                            mimeType = "audio/midi",
-                            bytes = midi,
-                        )
-                        statusMessage = "MIDI standard exporté (${midi.size} octets · $path)"
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Exporter en MIDI (.mid)")
-                }
-                OutlinedButton(
-                    onClick = {
-                        val pdf = state.exportPdf()
-                        val path = exporter.exportBytes(
-                            fileName = "fredonne_partition.pdf",
-                            mimeType = "application/pdf",
-                            bytes = pdf,
-                        )
-                        statusMessage = "PDF A4 avec QR code ABC exporté (${pdf.size} octets · $path)"
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Exporter la partition en PDF (.pdf)")
-                }
-                OutlinedButton(
-                    onClick = {
-                        val abc = state.exportAbc()
-                        val path = exporter.exportBytes(
-                            fileName = "fredonne_partition.abc",
-                            mimeType = "text/vnd.abc",
-                            bytes = abc.encodeToByteArray(),
-                        )
-                        statusMessage = "Notation ABC exportée ($path)"
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Exporter en notation ABC (.abc)")
-                }
-
-                HorizontalDivider()
-                Button(
-                    onClick = { importer.pickFile() },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentSage),
-                ) {
-                    Text("Ouvrir un fichier (.abc, .musicxml, .mid)")
-                }
-
-                HorizontalDivider()
-                Text("QR Code ABC & code de reprise rapide :", fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                Button(
-                    onClick = { showQrScanner = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentSage),
-                ) {
-                    Text("Scanner un QR code (papier ou écran)")
-                }
-                if (qrMatrix != null) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Canvas(
-                            modifier = Modifier
-                                .size(136.dp)
-                                .background(Color.White, RoundedCornerShape(8.dp))
-                                .border(1.dp, Color(0xFFD8D5CC), RoundedCornerShape(8.dp))
-                                .padding(8.dp),
-                        ) {
-                            val cellW = size.width / qrMatrix.size
-                            val cellH = size.height / qrMatrix.size
-                            for (y in 0 until qrMatrix.size) {
-                                for (x in 0 until qrMatrix.size) {
-                                    if (qrMatrix[x, y]) {
-                                        drawRect(
-                                            color = InkColor,
-                                            topLeft = Offset(x * cellW, y * cellH),
-                                            size = Size(cellW + 0.5f, cellH + 0.5f),
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if (qrChunks.size > 1) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            TextButton(
-                                onClick = { if (qrPageIndex > 0) qrPageIndex-- },
-                                enabled = qrPageIndex > 0,
-                            ) { Text("Précédent") }
-                            Text(
-                                text = "QR ${qrPageIndex + 1} / ${qrChunks.size}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MutedInk,
-                            )
-                            TextButton(
-                                onClick = { if (qrPageIndex < qrChunks.lastIndex) qrPageIndex++ },
-                                enabled = qrPageIndex < qrChunks.lastIndex,
-                            ) { Text("Suivant") }
-                        }
-                    }
-                } else {
-                    Text(
-                        text = "Partition trop dense pour un QR code. Utilisez l'export ABC ou MusicXML.",
-                        fontSize = 12.sp,
-                        color = MutedInk,
+                    FilterChip(
+                        selected = activeTab == FormatsTab.EXPORT,
+                        onClick = { activeTab = FormatsTab.EXPORT },
+                        label = { Text("Exporter") },
+                        modifier = Modifier.weight(1f),
+                    )
+                    FilterChip(
+                        selected = activeTab == FormatsTab.IMPORT,
+                        onClick = { activeTab = FormatsTab.IMPORT },
+                        label = { Text("Importer") },
+                        modifier = Modifier.weight(1f),
                     )
                 }
-                OutlinedTextField(
-                    value = shareCodeText,
-                    onValueChange = { shareCodeText = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    maxLines = 4,
-                    textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
-                )
-                OutlinedButton(
-                    onClick = {
-                        runCatching { state.importShareCode(shareCodeText) }
-                            .onSuccess { updated ->
-                                onUpdateState(updated)
-                                statusMessage = "Partition importée (${updated.melody.measures.size} mesures)"
-                            }
-                            .onFailure { statusMessage = "Erreur code QR / ABC : ${it.message ?: "format invalide"}" }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    border = BorderStroke(1.dp, AccentSage),
-                ) {
-                    Text("Reprendre la partition (ABC ou FR1)", color = AccentSage)
-                }
 
-                HorizontalDivider()
-                Text("Aperçu / Import MusicXML 4.0 :", fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                OutlinedTextField(
-                    value = xmlText,
-                    onValueChange = { xmlText = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(110.dp),
-                    textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
-                )
-                OutlinedButton(
-                    onClick = {
-                        runCatching { state.importMusicXml(xmlText) }
-                            .onSuccess { updated -> onUpdateState(updated) }
-                            .onFailure { statusMessage = "Erreur MusicXML : ${it.message ?: "format non reconnu"}" }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    border = BorderStroke(1.dp, AccentSage),
-                ) {
-                    Text("Importer ce MusicXML sur la portée", color = AccentSage)
+                when (activeTab) {
+                    FormatsTab.EXPORT -> ExportTabContent(
+                        state = state,
+                        exporter = exporter,
+                        onStatus = { statusMessage = it },
+                    )
+                    FormatsTab.IMPORT -> ImportTabContent(
+                        state = state,
+                        onPickFile = { importer.pickFile() },
+                        onScanQr = { showQrScanner = true },
+                        onImported = { updated, msg ->
+                            onUpdateState(updated)
+                            statusMessage = msg
+                        },
+                        onError = { statusMessage = it },
+                    )
                 }
 
                 statusMessage?.let { msg ->
@@ -2062,6 +1905,233 @@ private fun FormatsDialog(
             TextButton(onClick = onDismiss) { Text("Fermer") }
         },
     )
+}
+
+@Composable
+private fun ExportTabContent(
+    state: EditorState,
+    exporter: ScoreExporter,
+    onStatus: (String) -> Unit,
+) {
+    val shareCodeText = remember(state.melody, state.instrument, state.tempoBpm) {
+        state.exportShareCode()
+    }
+    val qrChunks = remember(shareCodeText) { QrChunker.split(shareCodeText) }
+    var qrPageIndex by remember(qrChunks) { mutableStateOf(0) }
+    val currentChunk = qrChunks.getOrNull(qrPageIndex).orEmpty()
+    val qrMatrix = remember(currentChunk) {
+        if (currentChunk.isEmpty()) null else QrCodeEncoder.encodeOrNull(currentChunk)
+    }
+
+    Button(
+        onClick = {
+            val pdf = state.exportPdf()
+            val path = exporter.exportBytes(
+                fileName = "fredonne_partition.pdf",
+                mimeType = "application/pdf",
+                bytes = pdf,
+            )
+            onStatus("PDF A4 exporté ($path)")
+        },
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(containerColor = AccentSage),
+    ) {
+        Text("Exporter en PDF (imprimable)")
+    }
+    Text(
+        text = "Partition A4 avec transposition et QR code de reprise.",
+        fontSize = 12.sp,
+        color = MutedInk,
+    )
+
+    HorizontalDivider()
+    Text("Partager à l'écran (QR Code)", fontWeight = FontWeight.Medium, fontSize = 13.sp)
+    if (qrMatrix != null) {
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(
+                modifier = Modifier
+                    .size(144.dp)
+                    .background(Color.White, RoundedCornerShape(8.dp))
+                    .border(1.dp, Color(0xFFD8D5CC), RoundedCornerShape(8.dp))
+                    .padding(8.dp),
+            ) {
+                val cellW = size.width / qrMatrix.size
+                val cellH = size.height / qrMatrix.size
+                for (y in 0 until qrMatrix.size) {
+                    for (x in 0 until qrMatrix.size) {
+                        if (qrMatrix[x, y]) {
+                            drawRect(
+                                color = InkColor,
+                                topLeft = Offset(x * cellW, y * cellH),
+                                size = Size(cellW + 0.5f, cellH + 0.5f),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        if (qrChunks.size > 1) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(
+                    onClick = { if (qrPageIndex > 0) qrPageIndex-- },
+                    enabled = qrPageIndex > 0,
+                ) { Text("Précédent") }
+                Text(
+                    text = "QR ${qrPageIndex + 1} / ${qrChunks.size}",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MutedInk,
+                )
+                TextButton(
+                    onClick = { if (qrPageIndex < qrChunks.lastIndex) qrPageIndex++ },
+                    enabled = qrPageIndex < qrChunks.lastIndex,
+                ) { Text("Suivant") }
+            }
+        }
+    } else {
+        Text(
+            text = "Mélodie trop longue pour un QR code : exportez en PDF ou MusicXML.",
+            fontSize = 12.sp,
+            color = MutedInk,
+        )
+    }
+
+    HorizontalDivider()
+    Text("Autres formats de fichier", fontWeight = FontWeight.Medium, fontSize = 13.sp)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        OutlinedButton(
+            onClick = {
+                val xml = state.exportMusicXml()
+                val path = exporter.exportBytes(
+                    fileName = "fredonne_partition.musicxml",
+                    mimeType = "application/vnd.recordare.musicxml+xml",
+                    bytes = xml.encodeToByteArray(),
+                )
+                onStatus("MusicXML exporté ($path)")
+            },
+            modifier = Modifier.weight(1f),
+        ) { Text("MusicXML") }
+        OutlinedButton(
+            onClick = {
+                val midi = state.exportMidi()
+                val path = exporter.exportBytes(
+                    fileName = "fredonne_melodie.mid",
+                    mimeType = "audio/midi",
+                    bytes = midi,
+                )
+                onStatus("MIDI exporté ($path)")
+            },
+            modifier = Modifier.weight(1f),
+        ) { Text("MIDI") }
+        OutlinedButton(
+            onClick = {
+                val abc = state.exportAbc()
+                val path = exporter.exportBytes(
+                    fileName = "fredonne_partition.abc",
+                    mimeType = "text/vnd.abc",
+                    bytes = abc.encodeToByteArray(),
+                )
+                onStatus("ABC exporté ($path)")
+            },
+            modifier = Modifier.weight(1f),
+        ) { Text("ABC") }
+    }
+}
+
+@Composable
+private fun ImportTabContent(
+    state: EditorState,
+    onPickFile: () -> Unit,
+    onScanQr: () -> Unit,
+    onImported: (EditorState, String) -> Unit,
+    onError: (String) -> Unit,
+) {
+    var showAdvancedPaste by remember { mutableStateOf(false) }
+    var pasteText by remember { mutableStateOf("") }
+
+    Button(
+        onClick = onPickFile,
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(containerColor = AccentSage),
+    ) {
+        Text("Ouvrir un fichier")
+    }
+    Text(
+        text = "Formats acceptés : .musicxml, .mid, .abc",
+        fontSize = 12.sp,
+        color = MutedInk,
+    )
+
+    OutlinedButton(
+        onClick = onScanQr,
+        modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(1.dp, AccentSage),
+    ) {
+        Text("Scanner un QR code", color = AccentSage)
+    }
+    Text(
+        text = "Depuis une partition papier ou l'écran d'un autre musicien.",
+        fontSize = 12.sp,
+        color = MutedInk,
+    )
+
+    HorizontalDivider()
+    TextButton(
+        onClick = { showAdvancedPaste = !showAdvancedPaste },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = if (showAdvancedPaste) "Masquer le collage de texte" else "Avancé : coller du texte (ABC, MusicXML)…",
+            fontSize = 12.sp,
+            color = MutedInk,
+        )
+    }
+    if (showAdvancedPaste) {
+        OutlinedTextField(
+            value = pasteText,
+            onValueChange = { pasteText = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp),
+            placeholder = { Text("Collez ici du texte ABC, MusicXML ou FR1…", fontSize = 12.sp) },
+            textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+        )
+        OutlinedButton(
+            onClick = {
+                val trimmed = pasteText.trim()
+                if (trimmed.isEmpty()) {
+                    onError("Collez d'abord un texte à importer.")
+                    return@OutlinedButton
+                }
+                val result = if (trimmed.startsWith("<")) {
+                    runCatching { state.importMusicXml(trimmed) }
+                } else {
+                    runCatching { state.importShareCode(trimmed) }
+                }
+                result
+                    .onSuccess { updated ->
+                        onImported(updated, "Partition importée (${updated.melody.measures.size} mesures)")
+                    }
+                    .onFailure { err ->
+                        onError("Format non reconnu : ${err.message ?: "vérifiez le texte collé"}")
+                    }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            border = BorderStroke(1.dp, AccentSage),
+        ) {
+            Text("Importer ce texte", color = AccentSage)
+        }
+    }
 }
 
 @Composable
