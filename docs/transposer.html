@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transposer pour son instrument : clarinette, saxophone, trompette, cor : Fredonne</title>
+<meta name="description" content="Clarinette et trompette en si♭, saxophone alto en mi♭, cor en fa : de combien écrire plus haut, quelle armure, et un outil pour trouver la tonalité à écrire.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Transposer pour son instrument : clarinette, saxophone, trompette, cor">
+<meta property="og:description" content="Clarinette et trompette en si♭, saxophone alto en mi♭, cor en fa : de combien écrire plus haut, quelle armure, et un outil pour trouver la tonalité à écrire.">
+<meta property="og:url" content="https://pilmil-studio.github.io/fredonne/transposer.html">
+<meta property="og:image" content="https://pilmil-studio.github.io/fredonne/store/feature-1024x500.png">
+<link rel="icon" type="image/png" sizes="512x512" href="store/icon-512.png">
+<style>
+:root {
+  --bg: #111318; --bg2: #1D212A; --fg: #F3F4F6; --muted: #A3AAB8; --line: #2C323F;
+  --accent: #F59E0B; --accent-solid: #D97706; --on-accent: #111318;
+  --blue: #4B6B8A;
+  --panel: color-mix(in srgb, #fff 5%, transparent);
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+
+  /* Maquette du simulateur : toujours claire, quel que soit le thème */
+  --paper: #FAF8F4; --paper-ink: #1E1D1A; --paper-green: #285D4D; --paper-line: #D5D1C7;
+  --key-white: #FFFFFF; --key-black: #1C1917; --key-line: #D6D3CD;
+
+  /* Échelle typographique fluide */
+  --step--2: 0.75rem;
+  --step--1: clamp(0.9rem, 0.88rem + 0.1vw, 0.96rem);
+  --step-0: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  --step-1: clamp(1.1rem, 1.06rem + 0.2vw, 1.2rem);
+  --step-2: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
+  --step-3: clamp(1.6rem, 1.35rem + 1.2vw, 2.2rem);
+  --step-4: clamp(2rem, 1.5rem + 2.4vw, 2.9rem);
+
+  /* Échelle d'espacement */
+  --space-1: 0.5rem;
+  --space-2: 0.75rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-5: 2.5rem;
+  --space-6: 4rem;
+
+  /* Rayons et ombres */
+  --radius-s: 8px;
+  --radius-m: 14px;
+  --radius-l: 22px;
+  --radius-pill: 999px;
+  --shadow-s: 0 6px 16px rgba(0,0,0,.14);
+  --shadow-m: 0 14px 32px rgba(0,0,0,.22);
+  --measure: 40em;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #FAF8F4; --bg2: #EFEAE0; --fg: #181A1F; --muted: #58606E; --line: #DDD6C8;
+    --accent: #A04B08; --accent-solid: #B45309; --on-accent: #FFFFFF;
+    --panel: color-mix(in srgb, #000 3%, transparent);
+    color-scheme: light;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(48rem 34rem at 92% -6%, color-mix(in srgb, var(--accent-solid) 24%, transparent), transparent 62%),
+    radial-gradient(44rem 32rem at -8% 22%, color-mix(in srgb, var(--blue) 20%, transparent), transparent 62%);
+  background-repeat: no-repeat;
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: var(--step-0);
+  line-height: 1.6;
+}
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+.wrap { max-width: 1060px; margin: 0 auto; padding-inline: var(--space-4); }
+h1, h2, h3 { text-wrap: balance; }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding-block: var(--space-3); flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: var(--space-2); text-decoration: none; font-weight: 700; font-size: var(--step-2); }
+.nav { display: flex; gap: var(--space-3) var(--space-4); flex-wrap: wrap; font-size: var(--step--1); color: var(--muted); }
+.nav a { text-decoration: none; }
+.nav a:hover { color: var(--fg); text-decoration: underline; }
+
+.hero { display: grid; gap: var(--space-5); padding-block: var(--space-4) var(--space-5); align-items: center; }
+.kicker { font-size: var(--step--1); font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 0 0 var(--space-2); }
+h1 { font-size: var(--step-4); line-height: 1.08; letter-spacing: -0.02em; margin: 0; font-weight: 700; }
+.lead { color: var(--muted); font-size: var(--step-1); max-width: 36em; margin: var(--space-4) 0 0; }
+.cta { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-4); }
+.btn { display: inline-flex; align-items: center; gap: var(--space-1); padding: 13px 22px; border-radius: var(--radius-pill); font-weight: 700; text-decoration: none; border: 1.5px solid var(--line); }
+.btn.primary { background: linear-gradient(120deg, var(--accent-solid), color-mix(in srgb, var(--accent-solid) 75%, #78350F)); border-color: transparent; color: var(--on-accent); }
+.btn:hover { border-color: var(--fg); }
+.btn.primary:hover { filter: brightness(1.08); }
+
+.staff-card {
+  padding: var(--space-4);
+  border-radius: var(--radius-l);
+  border: 1px solid var(--line);
+  background: linear-gradient(150deg, color-mix(in srgb, var(--accent-solid) 10%, var(--bg)), var(--panel));
+}
+.staff-card svg { width: 100%; height: auto; display: block; }
+@media (min-width: 860px) { .hero { grid-template-columns: 1.15fr 0.85fr; } }
+
+section { padding-block: var(--space-5) var(--space-4); }
+h2 { font-size: var(--step-3); line-height: 1.12; letter-spacing: -0.015em; margin: 0 0 var(--space-1); }
+.sub { color: var(--muted); margin: 0 0 var(--space-4); max-width: var(--measure); }
+
+.cards { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
+.card { padding: var(--space-4); border-radius: var(--radius-l); border: 1px solid var(--line); background: linear-gradient(150deg, color-mix(in srgb, var(--accent-solid) 8%, var(--bg)), var(--panel)); min-width: 0; }
+.card h3 { margin: 0 0 var(--space-1); font-size: var(--step-1); }
+.card p { margin: 0; color: var(--muted); font-size: var(--step--1); line-height: 1.6; }
+.card a { color: var(--accent); text-decoration: none; font-weight: 700; }
+.card a:hover { text-decoration: underline; }
+
+.shots { display: flex; gap: var(--space-4); overflow-x: auto; padding: var(--space-1) 0 var(--space-3); }
+.shots figure { margin: 0; flex: none; width: 220px; max-width: 66vw; display: grid; gap: var(--space-1); }
+.shots img { width: 100%; height: auto; border-radius: var(--radius-l); border: 1px solid var(--line); box-shadow: var(--shadow-m); display: block; }
+.shots figcaption { font-size: var(--step--1); color: var(--muted); text-align: center; }
+
+.rules { display: grid; gap: 0; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); border-top: 1px solid var(--line); list-style: none; padding: 0; margin: 0; }
+.rules li { padding: var(--space-3) var(--space-3) var(--space-3) 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.rules strong { display: block; font-size: var(--step-1); }
+.rules span { color: var(--muted); font-size: var(--step--1); }
+
+.sim-box { border: 1px solid var(--line); border-radius: var(--radius-l); padding: var(--space-4); background: var(--panel); display: grid; gap: var(--space-3); }
+.sim-toolbar { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; justify-content: space-between; }
+.sim-toolbar select, .sim-toolbar button { font: inherit; padding: 8px 14px; border-radius: var(--radius-pill); border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; font-weight: 600; font-size: var(--step--1); }
+.sim-toolbar button.primary { background: var(--accent-solid); border-color: var(--accent-solid); color: var(--on-accent); }
+.sim-staff { width: 100%; border-radius: var(--radius-m); border: 1px solid var(--line); background: var(--bg); padding: 10px; overflow-x: auto; }
+.piano { position: relative; display: flex; height: 122px; border-radius: var(--radius-m); overflow: hidden; border: 1px solid var(--line); user-select: none; }
+.wkey { flex: 1; background: var(--key-white); color: var(--key-black); border: 0; border-right: 1px solid var(--key-line); display: flex; align-items: flex-end; justify-content: center; padding-bottom: var(--space-1); font: inherit; font-size: var(--step--2); font-weight: 700; cursor: pointer; }
+.wkey:last-child { border-right: 0; }
+.wkey:active { background: #f3ede2; }
+.bkey { position: absolute; top: 0; height: 60%; width: 7.5%; background: var(--key-black); color: #fafaf9; border: 0; border-radius: 0 0 6px 6px; font-size: var(--step--2); cursor: pointer; z-index: 2; transform: translateX(-50%); }
+.bkey:active { background: var(--accent-solid); }
+.sim-status { margin: 0; color: var(--muted); font-size: var(--step--1); }
+
+/* Cartes de lecture : deux colonnes pour garder 55 à 75 caractères par ligne */
+@media (min-width: 700px) { #fonctions .cards, #recherche .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* En-tête et pied de page : liens espacés, zone de clic de 44 px */
+.nav a { display: inline-block; padding-block: 10px; }
+.nav { column-gap: var(--space-4); row-gap: 0; }
+.btn { min-height: 48px; }
+.foot a { display: inline-block; padding-block: 10px; }
+
+/* Simulateur : mise en page contenue, commandes de 44 px (les tailles en ligne sont écrasées ici) */
+.sim-frame { grid-template-columns: minmax(0, 1fr); }
+.sim-frame > * { min-width: 0; }
+.sim-frame .sim-toolbar select, .sim-frame .sim-toolbar button { min-height: 44px; font-size: var(--step--1) !important; padding: 8px 12px !important; }
+.sim-frame .sim-toolbar button { min-width: 44px; }
+.sim-frame .sim-toolbar select, .sim-frame .sim-toolbar button, #fr-oct-down, #fr-oct-up { background: var(--key-white); color: var(--paper-ink); border-color: var(--paper-line); }
+.sim-frame .sim-toolbar button.primary { background: var(--accent-solid); border-color: var(--accent-solid); color: var(--on-accent); }
+#fr-inst { flex: 1 1 100% !important; }
+#fr-durs button { flex: 1 1 auto !important; white-space: nowrap; }
+.sim-frame > div:has(#fr-status) { flex-wrap: wrap; }
+#fr-status { flex: 1 1 14rem !important; }
+#fr-oct-down, #fr-oct-up { min-height: 44px; min-width: 44px; font-size: var(--step--1) !important; padding: 8px 10px !important; }
+#fr-key-badge, #fr-oct-label, #fr-status { font-size: var(--step--2) !important; }
+#fr-key-badge, #fr-status, #fr-oct-label { line-height: 1.4; }
+.piano-scroll { overflow-x: auto; }
+@media (max-width: 700px) {
+  .piano { min-width: 448px; }
+  .bkey { width: 44px; }
+}
+
+/* Accessibilité */
+.skip { position: absolute; left: var(--space-2); top: -4rem; z-index: 10; padding: 10px 16px; border-radius: var(--radius-s); background: var(--fg); color: var(--bg); font-weight: 700; }
+.skip:focus { top: var(--space-2); }
+.sim-frame :focus-visible { outline-color: var(--paper-ink); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+
+@media print {
+  body { background: #fff; color: #000; }
+  .top, .skip, .cta, .staff-card, #simulateur, #captures { display: none; }
+  .card, .rules li { border-color: #999; background: none; break-inside: avoid; }
+  .kicker, .card a, .lead, .sub, .card p, .foot, .rules span { color: #000; }
+  a { text-decoration: underline; }
+}
+
+.foot { border-top: 1px solid var(--line); padding-block: var(--space-4) var(--space-5); color: var(--muted); font-size: var(--step--1); display: grid; gap: var(--space-2); }
+.foot p { margin: 0; }
+.foot a { color: var(--fg); }
+
+.doc { max-width:50rem; padding-block:var(--space-4,1.5rem) 3rem; }
+.doc h1 { font-size:var(--step-4); line-height:1.08; margin:.2em 0 .4em; text-wrap:balance; }
+.doc h2 { font-size:var(--step-3); line-height:1.15; margin:2.4rem 0 .6rem; }
+.doc p, .doc li { color:var(--muted); } .doc strong { color:var(--fg); }
+.tool { margin:1.6rem 0; padding:1.4rem; border-radius:20px; border:1px solid var(--line); background:var(--panel); display:grid; gap:1rem; }
+.tool .row { display:grid; gap:1rem; grid-template-columns:repeat(auto-fit,minmax(14rem,1fr)); }
+.tool label { display:block; font-weight:700; margin-bottom:.4rem; color:var(--fg); }
+.tool select { width:100%; font:inherit; padding:.7rem .9rem; border-radius:12px; border:1.5px solid var(--line); background:var(--bg); color:var(--fg); }
+.result { padding:1rem 1.2rem; border-radius:14px; background:color-mix(in srgb,var(--accent) 14%,transparent); color:var(--fg); font-size:var(--step-1); line-height:1.45; }
+.result b { color:var(--accent); }
+.result small { display:block; color:var(--muted); font-size:var(--step--1); margin-top:.3rem; }
+.grid { display:grid; grid-template-columns:1.5fr 1.2fr 1fr; font-size:var(--step--1); border-top:1.5px solid var(--fg); }
+.grid > div { padding:.55rem .8rem .55rem 0; border-bottom:1px solid var(--line); color:var(--muted); }
+.grid > .h { font-weight:700; color:var(--fg); border-bottom:1.5px solid var(--fg); }
+.grid > .n { font-weight:700; color:var(--accent); }
+.grid > .i { color:var(--fg); }
+.callout { margin:2.6rem 0 1rem; padding:1.5rem; border-radius:22px; background:linear-gradient(120deg,var(--accent-solid),color-mix(in srgb,var(--accent-solid) 70%,#3b1d02)); color:var(--on-accent); }
+.callout h2 { margin:0 0 .5rem; color:inherit; font-size:var(--step-2); } .callout p { color:inherit; margin:0 0 1rem; }
+.callout .btn { background:var(--on-accent); color:var(--accent); border-color:transparent; }
+.callout .btn.ghost { background:transparent; color:var(--on-accent); border:1.5px solid color-mix(in srgb,var(--on-accent) 55%,transparent); }
+@media (max-width:560px) { .grid { grid-template-columns:1fr 1fr; } .grid > .n, .grid > .h:nth-child(3) { display:none; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#contenu">Aller au contenu</a>
+<header class="wrap top">
+  <a class="brand" href="./">
+    <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true">
+      <rect width="36" height="36" rx="10" fill="#D97706"/>
+      <path d="M15 24V11l11-2.5v13" fill="none" stroke="#111318" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="12.5" cy="24.5" r="3" fill="#111318"/>
+      <circle cx="23.5" cy="22" r="3" fill="#111318"/>
+    </svg>
+    Fredonne
+  </a>
+  <nav class="nav" aria-label="Navigation">
+    <a href="./">L'appli</a>
+    <a href="transposer.html" aria-current="page">Transposer</a>
+    <a href="sources.html">Sources</a>
+    <a href="confidentialite.html">Confidentialité</a>
+  </nav>
+</header>
+
+<main id="contenu" class="wrap doc">
+<p class="kicker">Aide-mémoire du pupitre</p>
+<h1>Transposer pour son instrument</h1>
+<p class="lead">Une clarinette en si♭ qui lit un do fait entendre un si♭. Pour qu'elle joue juste avec un piano, une flûte ou un chœur, il faut lui écrire chaque note plus haut d'un intervalle fixe. Voici lequel, instrument par instrument, et comment changer l'armure.</p>
+
+<div class="tool" id="outil">
+  <div class="row">
+    <div><label for="instr">Instrument</label><select id="instr"></select></div>
+    <div><label for="ton">Tonalité du morceau (en ut)</label><select id="ton"></select></div>
+  </div>
+  <div class="result" id="res" aria-live="polite"></div>
+</div>
+
+<h2>De combien écrire plus haut</h2>
+<p>Le nom de l'instrument dit la note qu'il fait entendre quand il lit un do. Partant d'une partition en sons réels (on dit aussi « en ut »), on écrit chaque note plus haut de l'intervalle ci-dessous.</p>
+<div class="grid" role="table" aria-label="Transposition par instrument">
+  <div class="h" role="columnheader">Instrument</div><div class="h" role="columnheader">Écrire plus haut de</div><div class="h" role="columnheader">Un do devient</div>
+  <div class="i" role="cell">Clarinette en si♭</div><div role="cell">une seconde majeure (un ton)</div><div class="n" role="cell">ré</div>
+  <div class="i" role="cell">Trompette, bugle en si♭</div><div role="cell">une seconde majeure (un ton)</div><div class="n" role="cell">ré</div>
+  <div class="i" role="cell">Saxophone soprano (si♭)</div><div role="cell">une seconde majeure (un ton)</div><div class="n" role="cell">ré</div>
+  <div class="i" role="cell">Saxophone ténor (si♭)</div><div role="cell">une neuvième majeure (une octave et un ton)</div><div class="n" role="cell">ré, une octave plus haut</div>
+  <div class="i" role="cell">Saxophone alto (mi♭)</div><div role="cell">une sixte majeure</div><div class="n" role="cell">la</div>
+  <div class="i" role="cell">Saxophone baryton (mi♭)</div><div role="cell">une octave et une sixte majeure</div><div class="n" role="cell">la, une octave plus haut</div>
+  <div class="i" role="cell">Cor en fa</div><div role="cell">une quinte juste</div><div class="n" role="cell">sol</div>
+  <div class="i" role="cell">Guitare, basse, contrebasse</div><div role="cell">une octave</div><div class="n" role="cell">do, une octave plus haut</div>
+  <div class="i" role="cell">Flûte, hautbois, violon, trombone ténor</div><div role="cell">rien : ils lisent en ut</div><div class="n" role="cell">do</div>
+</div>
+<p>En harmonie, on rencontre aussi des trombones et des euphoniums en si♭ écrits en clé de sol : ils se transposent comme le saxophone ténor, une neuvième plus haut.</p>
+
+<h2>Changer l'armure</h2>
+<p>Inutile de recalculer chaque altération : on décale l'armure d'un coup, puis on transpose les notes.</p>
+<ul>
+  <li><strong>Instruments en si♭</strong> : ajoutez deux dièses à l'armure, ou retirez deux bémols. Un morceau en fa majeur (un bémol) s'écrit en sol majeur (un dièse).</li>
+  <li><strong>Instruments en mi♭</strong> : ajoutez trois dièses, ou retirez trois bémols. Un morceau en si♭ majeur (deux bémols) s'écrit en sol majeur (un dièse).</li>
+  <li><strong>Cor en fa</strong> : ajoutez un dièse, ou retirez un bémol. Do majeur devient sol majeur.</li>
+</ul>
+<p>Si l'on dépasse six altérations, on passe à la tonalité équivalente, plus simple à lire : sept dièses (do♯ majeur) s'écrivent cinq bémols (ré♭ majeur).</p>
+
+<h2>Les pièges</h2>
+<ul>
+  <li><strong>Les altérations accidentelles se transposent aussi.</strong> Un fa♯ isolé devient sol♯ pour une clarinette, ré♯ pour un saxophone alto.</li>
+  <li><strong>L'octave compte.</strong> Pour le ténor et le baryton, l'intervalle comprend une octave : sans elle, la partie sortirait de leur tessiture écrite.</li>
+  <li><strong>Vérifiez les extrêmes.</strong> Une note confortable pour la flûte peut sortir de la tessiture d'un saxophone une fois transposée. Il faut alors monter ou descendre tout un passage d'une octave.</li>
+  <li><strong>Dans l'autre sens</strong>, pour jouer au piano une partie de clarinette, on écrit plus bas du même intervalle.</li>
+</ul>
+
+<aside class="callout">
+  <h2>Transposer d'un geste</h2>
+  <p>Fredonne transpose une mélodie pour votre instrument, la fait écouter et signale les notes hors tessiture. Gratuite, sans compte et sans réseau.</p>
+  <div class="cta" style="margin-top:0">
+    <a class="btn" href="https://play.google.com/store/apps/details?id=fr.fredonne.app&amp;referrer=utm_source%3Dsite%26utm_content%3Dtransposer">Google Play</a>
+    <a class="btn ghost" href="./">Découvrir Fredonne</a>
+  </div>
+</aside>
+
+<h2>Sources</h2>
+<p>Les intervalles de cette page sont ceux de Fredonne, vérifiés le 16 novembre 2026 contre des références ouvertes : <a href="https://en.wikipedia.org/wiki/List_of_transposing_instruments">List of transposing instruments</a> et <a href="https://en.wikipedia.org/wiki/Transposing_instrument">Transposing instrument</a> (Wikipédia, en anglais). Le détail instrument par instrument est sur la page <a href="sources.html">Sources des transpositions</a>.</p>
+</main>
+
+<script>
+(function () {
+  // n : nombre de quintes ajoutées à l'armure (dièses positifs)
+  const I = [
+    ['Clarinette en si♭', 2, 'une seconde majeure', ''], ['Trompette en si♭', 2, 'une seconde majeure', ''],
+    ['Saxophone soprano (si♭)', 2, 'une seconde majeure', ''], ['Saxophone ténor (si♭)', 2, 'une neuvième majeure', ', une octave plus haut'],
+    ['Saxophone alto (mi♭)', 3, 'une sixte majeure', ''], ['Saxophone baryton (mi♭)', 3, 'une octave et une sixte majeure', ', une octave plus haut'],
+    ['Cor en fa', 1, 'une quinte juste', ''], ['Guitare, basse, contrebasse', 0, 'une octave', ', une octave plus haut']
+  ];
+  const MAJ = ['do♭','sol♭','ré♭','la♭','mi♭','si♭','fa','do','sol','ré','la','mi','si','fa♯','do♯'];
+  const MIN = ['la♭','mi♭','si♭','fa','do','sol','ré','la','mi','si','fa♯','do♯','sol♯','ré♯','la♯'];
+  const instr = document.getElementById('instr'), ton = document.getElementById('ton'), res = document.getElementById('res');
+  I.forEach((x, i) => instr.add(new Option(x[0], i)));
+  for (let k = -6; k <= 6; k++) ton.add(new Option(MAJ[k + 7] + ' majeur', 'M' + k));
+  for (let k = -6; k <= 6; k++) ton.add(new Option(MIN[k + 7] + ' mineur', 'm' + k));
+  ton.value = 'M-1';
+  const arm = k => k === 0 ? 'aucune altération' : Math.abs(k) + (k > 0 ? ' dièse' : ' bémol') + (Math.abs(k) > 1 ? 's' : '');
+  function render() {
+    const x = I[instr.value], minor = ton.value[0] === 'm', k = +ton.value.slice(1);
+    let w = k + x[1]; if (w > 6) w -= 12;
+    const names = minor ? MIN : MAJ, mode = minor ? ' mineur' : ' majeur';
+    const doDevient = MAJ[x[1] + 7];
+    res.innerHTML = 'Écrivez en <b>' + names[w + 7] + mode + '</b> (' + arm(w) + ')' + x[3] + '.' +
+      '<small>Le morceau sonne en ' + names[k + 7] + mode + ' (' + arm(k) + '). Chaque note s\'écrit ' + x[2] + ' plus haut : un do devient ' + doDevient + '.</small>';
+  }
+  instr.addEventListener('change', render); ton.addEventListener('change', render); render();
+})();
+</script>
+
+<footer class="wrap foot">
+  <p><img src="pilmil-logo.svg" alt="" width="20" height="20" style="vertical-align:-4px;margin-right:6px">Fredonne fait partie des applis de <a href="https://pilmil-studio.github.io/">Pilmil Studio</a> (France).</p>
+  <p>Contact : <a href="mailto:pilmil.studio@proton.me">pilmil.studio@proton.me</a> · <a href="confidentialite.html">Confidentialité</a> · <a href="transposer.html">Aide-mémoire de transposition</a> · <a href="sources.html">Sources des transpositions</a> · <a href="https://github.com/Pilmil-Studio/fredonne/blob/main/LICENSE">Licence MPL-2.0</a></p>
+</footer>
+</body>
+</html>
