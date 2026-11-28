@@ -38,11 +38,15 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -177,11 +181,16 @@ fun FredonneApp(
 ) {
     val prefs = rememberFredonnePrefs()
     val sessionStoreHolder = rememberSessionStore()
+    val libraryStoreHolder = rememberScoreLibraryStore()
     var onboarded by remember { mutableStateOf(initialOnboarded ?: prefs.onboarded) }
     var finishOnboardingAfterMic by remember { mutableStateOf(false) }
     var pendingOnboardingInstrument by remember { mutableStateOf<Instrument?>(null) }
     var pendingOnboardingSample by remember { mutableStateOf(false) }
     val sessionRepository = remember { SessionRepository(sessionStoreHolder) }
+    val libraryRepository = remember { ScoreLibraryRepository(libraryStoreHolder) }
+    var currentScoreId by rememberSaveable { mutableStateOf<String?>(null) }
+    var showLibraryScreen by rememberSaveable { mutableStateOf(false) }
+    var libraryEntries by remember { mutableStateOf(emptyList<SavedScoreEntry>()) }
     var state by remember {
         mutableStateOf(
             initialEditorState
@@ -318,9 +327,11 @@ fun FredonneApp(
                 title = {
                     Column {
                         Text(
-                            text = "Fredonne",
+                            text = state.title.ifBlank { "Fredonne" },
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 19.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = "${formatKeyLabel(state.displayedMelody.key)} · ${state.melody.time.beats}/${state.melody.time.unit}" +
@@ -333,6 +344,18 @@ fun FredonneApp(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = {
+                            libraryEntries = libraryRepository.list()
+                            showLibraryScreen = true
+                        },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LibraryMusic,
+                            contentDescription = "Mes partitions",
+                            tint = InkColor,
+                        )
+                    }
                     IconButton(
                         onClick = {
                             if (isPlaying) {
@@ -370,6 +393,14 @@ fun FredonneApp(
                         expanded = showOverflowMenu,
                         onDismissRequest = { showOverflowMenu = false },
                     ) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Mes partitions") },
+                            onClick = {
+                                showOverflowMenu = false
+                                libraryEntries = libraryRepository.list()
+                                showLibraryScreen = true
+                            },
+                        )
                         androidx.compose.material3.DropdownMenuItem(
                             text = { Text(if (readingMode) "Mode édition (clavier)" else "Mode pupitre (lecture plein écran)") },
                             onClick = {
@@ -780,6 +811,296 @@ fun FredonneApp(
 
     if (showAboutDialog) {
         AboutDialog(onDismiss = { showAboutDialog = false })
+    }
+
+    if (showLibraryScreen) {
+        ScoreLibraryScreen(
+            currentState = state,
+            currentScoreId = currentScoreId,
+            entries = libraryEntries,
+            onSaveCurrent = { titleInput, asNew ->
+                val cleanTitle = titleInput.trim()
+                val updated = state.copy(title = cleanTitle)
+                val targetId = if (asNew) null else currentScoreId
+                val saved = libraryRepository.save(targetId, updated)
+                if (saved != null) {
+                    state = updated
+                    currentScoreId = saved.id
+                    libraryEntries = libraryRepository.list()
+                }
+            },
+            onOpenEntry = { entry ->
+                if (isPlaying) {
+                    player.stop()
+                    isPlaying = false
+                    playingPosition = null
+                }
+                state = entry.state
+                currentScoreId = entry.id
+                showLibraryScreen = false
+            },
+            onNewScore = {
+                if (isPlaying) {
+                    player.stop()
+                    isPlaying = false
+                    playingPosition = null
+                }
+                state = EditorState(instrument = prefs.preferredInstrumentId?.let(Instruments::byId))
+                currentScoreId = null
+                showLibraryScreen = false
+            },
+            onDeleteEntry = { entry ->
+                if (libraryRepository.delete(entry.id)) {
+                    if (currentScoreId == entry.id) currentScoreId = null
+                    libraryEntries = libraryRepository.list()
+                }
+            },
+            onDismiss = { showLibraryScreen = false },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ScoreLibraryScreen(
+    currentState: EditorState,
+    currentScoreId: String?,
+    entries: List<SavedScoreEntry>,
+    onSaveCurrent: (title: String, asNew: Boolean) -> Unit,
+    onOpenEntry: (SavedScoreEntry) -> Unit,
+    onNewScore: () -> Unit,
+    onDeleteEntry: (SavedScoreEntry) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var titleDraft by remember(currentScoreId, currentState.title) {
+        mutableStateOf(currentState.title)
+    }
+    var pendingDelete by remember { mutableStateOf<SavedScoreEntry?>(null) }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = PaperBg,
+    ) {
+        Scaffold(
+            containerColor = PaperBg,
+            topBar = {
+                TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = PaperBg,
+                        titleContentColor = InkColor,
+                    ),
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = "Fermer")
+                        }
+                    },
+                    title = {
+                        Text(
+                            text = "Mes partitions",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 19.sp,
+                        )
+                    },
+                    actions = {
+                        TextButton(onClick = onNewScore) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = AccentSage,
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Nouvelle", color = AccentSage, fontWeight = FontWeight.SemiBold)
+                        }
+                    },
+                )
+            },
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = CardBg,
+                    border = BorderStroke(1.dp, AccentSage.copy(alpha = 0.25f)),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Text(
+                            text = if (currentScoreId != null) "Partition ouverte" else "Partition en cours (non enregistrée)",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                            color = AccentSage,
+                        )
+                        OutlinedTextField(
+                            value = titleDraft,
+                            onValueChange = { titleDraft = it },
+                            label = { Text("Titre de la partition") },
+                            placeholder = { Text("Ex. Valse en La mineur") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Button(
+                                onClick = { onSaveCurrent(titleDraft, false) },
+                                colors = ButtonDefaults.buttonColors(containerColor = AccentSage),
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(if (currentScoreId != null) "Mettre à jour" else "Enregistrer")
+                            }
+                            if (currentScoreId != null) {
+                                OutlinedButton(
+                                    onClick = { onSaveCurrent(titleDraft, true) },
+                                ) {
+                                    Text("Copie")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Text(
+                    text = "Partitions enregistrées (${entries.size})",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    color = InkColor,
+                )
+
+                if (entries.isEmpty()) {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = CardBg,
+                        border = BorderStroke(1.dp, MutedInk.copy(alpha = 0.2f)),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = "Aucune partition enregistrée pour l'instant. Donnez un titre ci-dessus puis touchez « Enregistrer ».",
+                            color = MutedInk,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
+                } else {
+                    entries.forEach { entry ->
+                        val isOpen = entry.id == currentScoreId
+                        val s = entry.state
+                        val subtitle = buildString {
+                            append(formatKeyLabel(s.displayedMelody.key))
+                            append(" · ")
+                            append("${s.melody.time.beats}/${s.melody.time.unit}")
+                            append(" · ")
+                            val count = s.melody.measures.size
+                            append(if (count > 1) "$count mesures" else "1 mesure")
+                            s.instrument?.let {
+                                append(" · ")
+                                append(instrumentLabel(it))
+                            }
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = CardBg,
+                            border = BorderStroke(
+                                width = if (isOpen) 1.5.dp else 1.dp,
+                                color = if (isOpen) AccentSage else MutedInk.copy(alpha = 0.2f),
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onOpenEntry(entry) },
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        Text(
+                                            text = s.title.ifBlank { "Sans titre" },
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 16.sp,
+                                            color = InkColor,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                        if (isOpen) {
+                                            Surface(
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = AccentSage.copy(alpha = 0.14f),
+                                            ) {
+                                                Text(
+                                                    text = "Ouverte",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = AccentSage,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Text(
+                                        text = subtitle,
+                                        fontSize = 12.sp,
+                                        color = MutedInk,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                                IconButton(onClick = { pendingDelete = entry }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Supprimer",
+                                        tint = WarnRed,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pendingDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("Supprimer la partition ?") },
+            text = {
+                Text("« ${target.state.title.ifBlank { "Sans titre" }} » sera supprimée de votre appareil.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteEntry(target)
+                        pendingDelete = null
+                    },
+                ) {
+                    Text("Supprimer", color = WarnRed)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text("Annuler")
+                }
+            },
+        )
     }
 }
 

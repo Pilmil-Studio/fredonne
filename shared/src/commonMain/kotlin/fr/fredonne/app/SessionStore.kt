@@ -76,3 +76,64 @@ class AutosaveScheduler(private val repository: SessionRepository) {
         return repository.save(state)
     }
 }
+
+/** Enregistrement brut d'une partition dans la bibliothèque locale. */
+data class SavedScoreRecord(
+    val id: String,
+    val updatedAtMs: Long,
+    val content: String,
+)
+
+/** Stockage privé de toutes les partitions enregistrées par l'utilisateur. */
+interface ScoreLibraryStore {
+    fun list(): List<SavedScoreRecord>
+    fun read(id: String): String?
+    fun write(id: String, text: String)
+    fun delete(id: String): Boolean
+    fun newId(): String
+}
+
+@Composable
+expect fun rememberScoreLibraryStore(): ScoreLibraryStore
+
+/** Partition décodée dans la bibliothèque locale. */
+data class SavedScoreEntry(
+    val id: String,
+    val updatedAtMs: Long,
+    val state: EditorState,
+)
+
+/** Gestion de la bibliothèque locale de partitions, indépendamment de la plateforme. */
+class ScoreLibraryRepository(private val store: ScoreLibraryStore) {
+
+    fun list(): List<SavedScoreEntry> = store.list()
+        .sortedByDescending { it.updatedAtMs }
+        .mapNotNull { rec ->
+            try {
+                SavedScoreEntry(rec.id, rec.updatedAtMs, EditorSessionCodec.decode(rec.content))
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+    fun save(id: String?, state: EditorState): SavedScoreEntry? = try {
+        val targetId = id ?: store.newId()
+        val clean = state.copy(undoStack = emptyList(), redoStack = emptyList())
+        store.write(targetId, EditorSessionCodec.encode(clean))
+        SavedScoreEntry(targetId, updatedAtMs = store.list().firstOrNull { it.id == targetId }?.updatedAtMs ?: 0L, state = clean)
+    } catch (_: Exception) {
+        null
+    }
+
+    fun load(id: String): EditorState? = try {
+        store.read(id)?.let(EditorSessionCodec::decode)
+    } catch (_: Exception) {
+        null
+    }
+
+    fun delete(id: String): Boolean = try {
+        store.delete(id)
+    } catch (_: Exception) {
+        false
+    }
+}

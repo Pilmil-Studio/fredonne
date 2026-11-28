@@ -34,6 +34,7 @@ data class EditorSnapshot(
 )
 
 data class EditorState(
+    val title: String = "",
     val melody: Melody = defaultMelody(),
     val instrument: Instrument? = null,
     val selectedDuration: Fraction = Durations.QUARTER,

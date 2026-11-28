@@ -50,6 +50,9 @@ object EditorSessionCodec {
         }
         val melody = state.melody
         line(HEADER, VERSION)
+        if (state.title.isNotEmpty()) {
+            line("title", escape(state.title))
+        }
         line("key", melody.key.tonicStep.name, melody.key.tonicAlter, if (melody.key.mode == Mode.MAJOR) "M" else "m")
         line("time", melody.time.beats, melody.time.unit)
         line("tempo", state.tempoBpm)
@@ -93,6 +96,7 @@ object EditorSessionCodec {
         for (raw in lines.drop(1)) {
             val f = raw.split('\t')
             when (f[0]) {
+                "title" -> state = state.copy(title = unescape(f.getOrElse(1) { "" }))
                 "key" -> key = Key(
                     Step.valueOf(f[1]),
                     f[2].toInt().also { require(it in -2..2) { "Altération de tonique invalide" } },

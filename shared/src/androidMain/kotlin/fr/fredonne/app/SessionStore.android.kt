@@ -42,6 +42,55 @@ actual fun rememberSessionStore(): SessionStore {
     return remember { FileSessionStore(File(context.applicationContext.filesDir, "session")) }
 }
 
+class FileScoreLibraryStore(private val dir: File) : ScoreLibraryStore {
+
+    private fun safeId(id: String): String = id.replace(Regex("[^A-Za-z0-9_-]"), "_")
+
+    private fun fileFor(id: String): File = File(dir, "${safeId(id)}.txt")
+
+    override fun list(): List<SavedScoreRecord> {
+        if (!dir.isDirectory) return emptyList()
+        return dir.listFiles { f -> f.isFile && f.name.endsWith(".txt") }
+            ?.map { f ->
+                SavedScoreRecord(
+                    id = f.name.removeSuffix(".txt"),
+                    updatedAtMs = f.lastModified(),
+                    content = f.readText(Charsets.UTF_8),
+                )
+            }
+            ?: emptyList()
+    }
+
+    override fun read(id: String): String? {
+        val f = fileFor(id)
+        return if (f.isFile) f.readText(Charsets.UTF_8) else null
+    }
+
+    override fun write(id: String, text: String) {
+        dir.mkdirs()
+        val target = fileFor(id)
+        val tmp = File(dir, "${safeId(id)}.txt.tmp")
+        FileOutputStream(tmp).use { out ->
+            out.write(text.toByteArray(Charsets.UTF_8))
+            out.fd.sync()
+        }
+        Files.move(tmp.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+    }
+
+    override fun delete(id: String): Boolean {
+        val f = fileFor(id)
+        return !f.exists() || f.delete()
+    }
+
+    override fun newId(): String = "score_${System.currentTimeMillis()}_${(1000..9999).random()}"
+}
+
+@Composable
+actual fun rememberScoreLibraryStore(): ScoreLibraryStore {
+    val context = LocalContext.current
+    return remember { FileScoreLibraryStore(File(context.applicationContext.filesDir, "scores")) }
+}
+
 @Composable
 actual fun OnAppBackground(onBackground: () -> Unit) {
     val owner = LocalLifecycleOwner.current

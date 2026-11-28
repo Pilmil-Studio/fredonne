@@ -48,4 +48,29 @@ class FileSessionStoreTest {
         assertTrue(SessionRepository(store).save(state))
         assertEquals(state, SessionRepository(store).load())
     }
+
+    @Test
+    fun `bibliotheque de partitions enregistrement ouverture et suppression`() {
+        val store = FileScoreLibraryStore(File(tempDir(), "scores"))
+        val repo = ScoreLibraryRepository(store)
+        assertTrue(repo.list().isEmpty())
+
+        val first = repo.save(null, EditorState(title = "Valse", tempoBpm = 110))
+        assertNotNull(first)
+        val second = repo.save(null, EditorState(title = "Marche", tempoBpm = 124))
+        assertNotNull(second)
+
+        val entries = repo.list()
+        assertEquals(2, entries.size)
+        assertEquals(setOf("Valse", "Marche"), entries.map { it.state.title }.toSet())
+
+        val loaded = repo.load(first.id)
+        assertNotNull(loaded)
+        assertEquals("Valse", loaded.title)
+        assertEquals(110, loaded.tempoBpm)
+
+        assertTrue(repo.delete(first.id))
+        assertEquals(1, repo.list().size)
+        assertNull(repo.load(first.id))
+    }
 }
