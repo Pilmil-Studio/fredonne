@@ -9,8 +9,11 @@ import kotlinx.cinterop.useContents
 import kotlinx.cinterop.usePinned
 import platform.CoreGraphics.CGRectMake
 import platform.Foundation.NSData
+import platform.Foundation.NSDocumentDirectory
+import platform.Foundation.NSSearchPathForDirectoriesInDomains
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSURL
+import platform.Foundation.NSUserDomainMask
 import platform.Foundation.create
 import platform.Foundation.writeToFile
 import platform.UIKit.UIActivityViewController
@@ -53,6 +56,24 @@ class IosScoreExporter : ScoreExporter {
             rootVc.presentViewController(activityVc, animated = true, completion = null)
         }
         return path
+    }
+
+    override fun saveBytes(fileName: String, mimeType: String, bytes: ByteArray, onResult: (String?) -> Unit) {
+        val docsDir = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, true).firstOrNull() as? String
+        if (docsDir == null) {
+            onResult(null)
+            return
+        }
+        val path = "$docsDir/$fileName"
+        val ok = if (bytes.isNotEmpty()) {
+            val data = bytes.usePinned { pinned ->
+                NSData.create(bytes = pinned.addressOf(0), length = bytes.size.toULong())
+            }
+            data?.writeToFile(path, atomically = true) == true
+        } else {
+            false
+        }
+        onResult(if (ok) "Fichiers/$fileName" else null)
     }
 
     @Suppress("DEPRECATION")

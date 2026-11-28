@@ -41,12 +41,14 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -916,14 +918,20 @@ private fun ScoreLibraryScreen(
                 )
             },
         ) { padding ->
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                    .padding(padding),
+                contentAlignment = Alignment.TopCenter,
             ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 720.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = CardBg,
@@ -1074,6 +1082,7 @@ private fun ScoreLibraryScreen(
                         }
                     }
                 }
+            }
             }
         }
     }
@@ -2244,20 +2253,56 @@ private fun ExportTabContent(
         if (currentChunk.isEmpty()) null else QrCodeEncoder.encodeOrNull(currentChunk)
     }
 
-    Button(
-        onClick = {
-            val pdf = state.exportPdf()
-            val path = exporter.exportBytes(
-                fileName = "fredonne_partition.pdf",
-                mimeType = "application/pdf",
-                bytes = pdf,
-            )
-            onStatus("PDF A4 exporté ($path)")
-        },
+    val pdfFileName = state.title.trim()
+        .takeIf { it.isNotEmpty() }
+        ?.replace(Regex("[^A-Za-z0-9_-]"), "_")
+        ?.let { "$it.pdf" }
+        ?: "fredonne_partition.pdf"
+
+    Text("PDF A4 (imprimable)", fontWeight = FontWeight.Medium, fontSize = 13.sp)
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        colors = ButtonDefaults.buttonColors(containerColor = AccentSage),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("Exporter en PDF (imprimable)")
+        Button(
+            onClick = {
+                val pdf = state.exportPdf()
+                exporter.saveBytes(
+                    fileName = pdfFileName,
+                    mimeType = "application/pdf",
+                    bytes = pdf,
+                ) { savedPath ->
+                    onStatus(
+                        if (savedPath != null) "PDF enregistré ($savedPath)"
+                        else "Enregistrement du PDF annulé",
+                    )
+                }
+            },
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = AccentSage),
+        ) {
+            Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("Télécharger", maxLines = 1, softWrap = false, fontSize = 13.sp)
+        }
+        OutlinedButton(
+            onClick = {
+                val pdf = state.exportPdf()
+                val path = exporter.exportBytes(
+                    fileName = pdfFileName,
+                    mimeType = "application/pdf",
+                    bytes = pdf,
+                )
+                onStatus("PDF A4 partagé ($path)")
+            },
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
+        ) {
+            Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("Partager", maxLines = 1, softWrap = false, fontSize = 13.sp)
+        }
     }
     Text(
         text = "Partition A4 avec transposition et QR code de reprise.",
@@ -2341,7 +2386,8 @@ private fun ExportTabContent(
                 onStatus("MusicXML exporté ($path)")
             },
             modifier = Modifier.weight(1f),
-        ) { Text("MusicXML") }
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+        ) { Text("MusicXML", maxLines = 1, softWrap = false, fontSize = 13.sp) }
         OutlinedButton(
             onClick = {
                 val midi = state.exportMidi()
@@ -2353,7 +2399,8 @@ private fun ExportTabContent(
                 onStatus("MIDI exporté ($path)")
             },
             modifier = Modifier.weight(1f),
-        ) { Text("MIDI") }
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+        ) { Text("MIDI", maxLines = 1, softWrap = false, fontSize = 13.sp) }
         OutlinedButton(
             onClick = {
                 val abc = state.exportAbc()
@@ -2365,7 +2412,8 @@ private fun ExportTabContent(
                 onStatus("ABC exporté ($path)")
             },
             modifier = Modifier.weight(1f),
-        ) { Text("ABC") }
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+        ) { Text("ABC", maxLines = 1, softWrap = false, fontSize = 13.sp) }
     }
 }
 

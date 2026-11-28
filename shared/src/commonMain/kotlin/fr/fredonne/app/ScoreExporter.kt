@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
  */
 interface ScoreExporter {
     fun exportBytes(fileName: String, mimeType: String, bytes: ByteArray): String
+    fun saveBytes(fileName: String, mimeType: String, bytes: ByteArray, onResult: (String?) -> Unit)
 }
 
 @Composable
